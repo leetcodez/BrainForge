@@ -43,6 +43,7 @@ rich==15.0.0
 scikit-learn==1.8.0
 scipy==1.17.1
 SQLAlchemy==2.0.50
+tabulate==0.10.0
 threadpoolctl==3.6.0
 tqdm==4.67.3
 typing-inspection==0.4.2
