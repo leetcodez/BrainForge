@@ -14,6 +14,8 @@ import config
 from network_engine import NetworkEngine
 from syntax_validator import SyntaxValidator
 from llm_seed_generator import LLMSeedGenerator
+from db_manager import init_db, save_alpha
+from hyper_tuner import AlphaTuner
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -137,6 +139,7 @@ class AlphaOrchestrator:
         self.population: List[Dict] = []
         self.executor = ThreadPoolExecutor(max_workers=config.MAX_CONCURRENT_SIMULATIONS)
         self.submission_count = 0
+        init_db()
         
         # Spatial Memory
         self.history_exprs = []
@@ -306,61 +309,68 @@ class AlphaOrchestrator:
                 
         results = await asyncio.gather(*tasks)
         
-        with open("winners.csv", "a") as f:
-            for expr, (score, turnover, alpha_id) in zip(valid_expressions, results):
-                if score >= -1.0:
-                    self.history_exprs.append(expr)
-                    self.history_scores.append(score)
-                    
-                    # 1. Parsimony Pressure Execution
-                    try:
-                        ast_tree = ast.parse(expr, mode='eval')
-                        depth = GeneticEngine.ast_depth(ast_tree)
-                    except:
-                        depth = 5
-                    
-                    adjusted_fitness = score - (config.PARSIMONY_COEFFICIENT * depth)
-                    
-                    self.population.append({
-                        "expression": expr, 
-                        "fitness": score, 
-                        "turnover": turnover,
-                        "adjusted_fitness": adjusted_fitness
-                    })
-                    
-                    # 2. Thoughts Decompiler (Agentic Feedback Generation)
-                    if score < 0.20:
-                        thought = f"Expression '{expr}' failed (Sharpe {score:.2f}). The operators or fundamental datasets used lack robust predictive edge."
-                        self.experience_memory.append(thought)
-                    elif turnover >= 0.80:
-                        thought = f"Expression '{expr}' failed due to massive turnover ({turnover:.2%}). Utilize smoothing operators like ts_decay_linear to reduce transactional friction."
-                        self.experience_memory.append(thought)
-                    
-                    if score > 1.25 and turnover < 0.70:
-                        is_correlated = False
-                        if alpha_id:
-                            try:
-                                corr_res = await self.network.request("GET", f"/alphas/{alpha_id}/correlations/self")
-                                correlations = []
-                                if isinstance(corr_res, list):
-                                    correlations = [c.get("value", c.get("correlation", 0)) for c in corr_res]
-                                elif isinstance(corr_res, dict) and "results" in corr_res:
-                                    correlations = [c.get("value", c.get("correlation", 0)) for c in corr_res["results"]]
+        for expr, (score, turnover, alpha_id) in zip(valid_expressions, results):
+            if score >= -1.0:
+                self.history_exprs.append(expr)
+                self.history_scores.append(score)
+                
+                # 1. Parsimony Pressure Execution
+                try:
+                    ast_tree = ast.parse(expr, mode='eval')
+                    depth = GeneticEngine.ast_depth(ast_tree)
+                except:
+                    depth = 5
+                
+                adjusted_fitness = score - (config.PARSIMONY_COEFFICIENT * depth)
+                
+                self.population.append({
+                    "expression": expr, 
+                    "fitness": score, 
+                    "turnover": turnover,
+                    "adjusted_fitness": adjusted_fitness
+                })
+                
+                # Save to DB
+                save_alpha(expr, 0, score, turnover, adjusted_fitness, depth)
+                
+                # 2. Thoughts Decompiler (Agentic Feedback Generation)
+                if score < 0.20:
+                    thought = f"Expression '{expr}' failed (Sharpe {score:.2f}). The operators or fundamental datasets used lack robust predictive edge."
+                    self.experience_memory.append(thought)
+                elif turnover >= 0.80:
+                    thought = f"Expression '{expr}' failed due to massive turnover ({turnover:.2%}). Utilize smoothing operators like ts_decay_linear to reduce transactional friction."
+                    self.experience_memory.append(thought)
+                
+                if 1.0 < score < 1.25 and turnover < 0.60:
+                    generalized_expr = expr.replace("10", "{d1}").replace("20", "{d2}")
+                    tuner = AlphaTuner(generalized_expr, self._simulate_alpha)
+                    optimal_expr, optimized_sharpe, _ = tuner.run_tuning(n_trials=10)
+                    save_alpha(optimal_expr, 0, optimized_sharpe, turnover, adjusted_fitness, depth, is_tuned=1)
+                
+                if score > 1.25 and turnover < 0.70:
+                    is_correlated = False
+                    if alpha_id:
+                        try:
+                            corr_res = await self.network.request("GET", f"/alphas/{alpha_id}/correlations/self")
+                            correlations = []
+                            if isinstance(corr_res, list):
+                                correlations = [c.get("value", c.get("correlation", 0)) for c in corr_res]
+                            elif isinstance(corr_res, dict) and "results" in corr_res:
+                                correlations = [c.get("value", c.get("correlation", 0)) for c in corr_res["results"]]
+                            
+                            max_corr = max([float(c) for c in correlations if c]) if correlations else 0
+                            if max_corr > 0.70:
+                                logger.warning(f"Auto-Correlation Defense: Discarding {expr}. Max correlation is {max_corr:.2f}")
+                                is_correlated = True
                                 
-                                max_corr = max([float(c) for c in correlations if c]) if correlations else 0
-                                if max_corr > 0.70:
-                                    logger.warning(f"Auto-Correlation Defense: Discarding {expr}. Max correlation is {max_corr:.2f}")
-                                    is_correlated = True
-                                    
-                                    # Feedback loop for correlation
-                                    thought = f"Expression '{expr}' achieved high Sharpe but is highly correlated (>0.70) to existing models. Search space is saturated here."
-                                    self.experience_memory.append(thought)
-                            except Exception as e:
-                                logger.error(f"Correlation check failed for {alpha_id}: {e}")
-                                
-                        if not is_correlated:
-                            f.write(f"{expr},{score},{turnover}\n")
-                            logger.info(f"🏆 HIGH QUALITY WINNER FOUND: {expr} (Sharpe: {score:.2f} | Turnover: {turnover:.2%})")
+                                # Feedback loop for correlation
+                                thought = f"Expression '{expr}' achieved high Sharpe but is highly correlated (>0.70) to existing models. Search space is saturated here."
+                                self.experience_memory.append(thought)
+                        except Exception as e:
+                            logger.error(f"Correlation check failed for {alpha_id}: {e}")
+                            
+                    if not is_correlated:
+                        logger.info(f"🏆 HIGH QUALITY WINNER FOUND: {expr} (Sharpe: {score:.2f} | Turnover: {turnover:.2%})")
 
     def _select_parents(self) -> List[str]:
         """Parent selection utilizes NSGA-II to capture Pareto-optimal diversity."""
