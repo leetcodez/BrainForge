@@ -60,6 +60,7 @@ POPULATION_SIZE = 50
 ELITISM_RATIO = 0.1
 MUTATION_RATE = 0.2
 TOURNAMENT_SIZE = 5
+PARSIMONY_COEFFICIENT = 0.05 # Penalizes AST depth to eliminate tree bloat
 
 # Simulation Settings
 DEFAULT_INSTRUMENT = "EQUITY"

@@ -1,4 +1,21 @@
+# Environments
 .env
 venv/
+/venv/
+
+# Python
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# State & Databases
+brain_memory.db
+*.pkl
+
+# Output & Data
 winners.csv
+
+# Raw data dictionaries
+*.dict
+raw_data/
