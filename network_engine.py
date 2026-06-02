@@ -53,10 +53,26 @@ class NetworkEngine:
                     logger.error(f"HTTP {response.status_code} Error: {response.text}")
                     response.raise_for_status()
 
-                if not response.text.strip():
-                    return {}
-                    
-                return response.json()
+                result = {}
+                if response.text.strip():
+                    try:
+                        result = response.json()
+                    except Exception as parse_e:
+                        logger.warning(f"Failed to parse JSON response: {parse_e}")
+                
+                # Inject headers (Crucial for 201 Created 'Location' polling)
+                for k, v in response.headers.items():
+                    if k.lower() == 'location':
+                        result['Location'] = v
+                    else:
+                        result[k] = v
+                        
+                # WorldQuant sends 'Retry-After' even on 201 successes to throttle polling
+                retry_after = response.headers.get("Retry-After")
+                if retry_after:
+                    await asyncio.sleep(float(retry_after))
+
+                return result
                 
             except Exception as e:
                 logger.error(f"Request failed: {url} - {e}")
