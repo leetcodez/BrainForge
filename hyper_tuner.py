@@ -22,7 +22,10 @@ class AlphaTuner:
         
         # Bridge sync Optuna to async simulator
         loop = asyncio.get_event_loop()
-        sharpe, turnover, _ = loop.run_until_complete(self.simulate_func(candidate_expr))
+        sharpe, turnover, alpha_id = loop.run_until_complete(self.simulate_func(candidate_expr))
+        
+        # Store alpha_id so we can retrieve the best one later
+        trial.set_user_attr("alpha_id", alpha_id)
         
         if turnover > 0.70:
             return -1.0 
@@ -37,8 +40,9 @@ class AlphaTuner:
         
         best_params = study.best_params
         best_sharpe = study.best_value
+        best_alpha_id = study.best_trial.user_attrs.get("alpha_id", "")
         
         optimal_expr = self.base_expression.replace("{d1}", str(best_params["d1"])).replace("{d2}", str(best_params["d2"]))
         
         print(f"[+] Tuning Complete! Best Sharpe: {best_sharpe} using {best_params}")
-        return optimal_expr, best_sharpe, best_params
+        return optimal_expr, best_sharpe, best_params, best_alpha_id

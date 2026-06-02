@@ -12,6 +12,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS alpha_population (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             expression TEXT UNIQUE,
+            alpha_id TEXT,
             generation INTEGER,
             sharpe REAL,
             turnover REAL,
@@ -34,15 +35,15 @@ def init_db():
     conn.commit()
     conn.close()
 
-def save_alpha(expression, gen, sharpe, turnover, fitness, depth, is_tuned=0):
+def save_alpha(expression, alpha_id, gen, sharpe, turnover, fitness, depth, is_tuned=0):
     """Logs an evaluated alpha to the database."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     try:
         cursor.execute('''
-            INSERT INTO alpha_population (expression, generation, sharpe, turnover, fitness, ast_depth, is_tuned)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (expression, gen, sharpe, turnover, fitness, depth, is_tuned))
+            INSERT INTO alpha_population (expression, alpha_id, generation, sharpe, turnover, fitness, ast_depth, is_tuned)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (expression, alpha_id, gen, sharpe, turnover, fitness, depth, is_tuned))
         conn.commit()
     except sqlite3.IntegrityError:
         pass # Ignore duplicates
