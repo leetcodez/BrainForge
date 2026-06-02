@@ -1,6 +1,10 @@
 import optuna
 import asyncio
 import logging
+import nest_asyncio
+
+# Apply the patch to allow nested event loops
+nest_asyncio.apply()
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
