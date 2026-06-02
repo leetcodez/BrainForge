@@ -466,6 +466,6 @@ class AlphaOrchestrator:
 if __name__ == "__main__":
     orchestrator = AlphaOrchestrator()
     try:
-        asyncio.run(orchestrator.run_factory_loop(generations=10))
+        asyncio.run(orchestrator.run_factory_loop(generations=config.GENERATIONS))
     finally:
         asyncio.run(orchestrator.shutdown())

@@ -5,7 +5,7 @@ load_dotenv()
 
 # API Configurations
 WQ_BASE_URL = os.getenv("WQ_BASE_URL", "https://api.worldquantbrain.com")
-WQ_COOKIE = os.getenv("WQ_COOKIE", "cookieyes-consent=consentid:MnNBbnljSThGUWJQRkFSaE5SNXd1WmdJZXpTY1c0RG4,consent:yes,action:yes,necessary:yes,functional:yes,analytics:yes,performance:yes,advertisement:yes,other:yes; __zlcmid=1XjoXQxrdKEmm6w; t=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJPTzlXOG91VUZoSXRIYXAxZ0Z0S0hMRFFWS2FhM042OCIsImV4cCI6MTc4MDM2MjMwMSwiYW1yIjpbInB3ZCIsImZhY2UiXX0.GJ-p7Wwgay82JLC31Y5_S_BgpaL66w9u4wdulwr4hpk")
+WQ_COOKIE = os.getenv("WQ_COOKIE", "cookieyes-consent=consentid:MnNBbnljSThGUWJQRkFSaE5SNXd1WmdJZXpTY1c0RG4,consent:yes,action:yes,necessary:yes,functional:yes,analytics:yes,performance:yes,advertisement:yes,other:yes; __zlcmid=1XjoXQxrdKEmm6w; t=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJ3QjlhdFVhRmhjRmFwSkNNUzBPWXZnR3R5MWlPc29SYyIsImV4cCI6MTc4MDQzOTMxNywiYW1yIjpbInB3ZCIsImZhY2UiXX0.HossvGFGNdRBHp5qTRezhB3LxCBNO3SzLMXfqsC4FVw")
 
 # Data Dictionary (Categorized)
 PRICE_FIELDS = ["close", "open", "high", "low", "vwap", "adv20", "after_session_vwap", "after_hours_vwap_2", "after_hours_vwap_value"]
@@ -53,10 +53,11 @@ MAX_CONCURRENT_SIMULATIONS = 5
 # LLM Configurations
 LLM_PROVIDER = "gemini"
 LLM_MODEL = "gemini-2.5-flash"
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "YOUR_GEMINI_API_KEY_HERE")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AQ.Ab8RN6JDD_7raCiCjw8l3DdKFrhEAA5_kBWXP-ygPf3CVryPdA")
 
 # Mutation & Genetic Evolution Settings
-POPULATION_SIZE = 50
+POPULATION_SIZE = 200
+GENERATIONS = 500
 ELITISM_RATIO = 0.1
 MUTATION_RATE = 0.2
 TOURNAMENT_SIZE = 5
