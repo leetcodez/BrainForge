@@ -2,6 +2,7 @@ import asyncio
 import time
 import random
 import logging
+import re
 from typing import Dict, Any, Optional
 from curl_cffi import requests
 
@@ -11,17 +12,29 @@ logger = logging.getLogger(__name__)
 
 class NetworkEngine:
     def __init__(self):
+        # Extract the JWT from the raw cookie string
+        jwt_token = None
+        match = re.search(r't=([a-zA-Z0-9\.\-_]+)', config.WQ_COOKIE)
+        if match:
+            jwt_token = match.group(1)
+        
+        headers = {
+            "Content-Type": "application/json"
+        }
+        if jwt_token:
+            headers["Authorization"] = f"Bearer {jwt_token}"
+        else:
+            # Fallback to cookie if JWT parsing fails
+            headers["Cookie"] = config.WQ_COOKIE
+            logger.warning("Failed to extract JWT from cookie, falling back to raw cookie auth.")
+            
         self.session = requests.AsyncSession(
             impersonate=config.BROWSER_IMPERSONATE,
-            headers={
-                "Cookie": config.WQ_COOKIE,
-                "Content-Type": "application/json"
-            }
+            headers=headers
         )
 
     async def _gaussian_jitter(self):
         """Injects artificial Poisson-distributed/Gaussian sleep delays between API requests."""
-        # Using a normal distribution to simulate human variation around a mean
         mean = (config.MAX_JITTER_SECS + config.MIN_JITTER_SECS) / 2
         std_dev = (config.MAX_JITTER_SECS - config.MIN_JITTER_SECS) / 4
         delay = max(config.MIN_JITTER_SECS, min(config.MAX_JITTER_SECS, random.gauss(mean, std_dev)))
