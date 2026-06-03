@@ -19,3 +19,8 @@ winners.csv
 # Raw data dictionaries
 *.dict
 raw_data/
+
+brain_memory.db*
+factory.log
+codex_changes.*
+digest.txt

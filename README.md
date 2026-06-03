@@ -1,38 +1,31 @@
-# BrainForge: Gen-3 Autonomous Alpha Discovery Agent
+# BrainForge: Gen-4 Alpha Factory
 
-BrainForge is an autonomous, self-evolving Quantitative Signal Generator engineered for the WorldQuant Brain platform. Operating as a fully self-directed research agent, it continuously hypothesizes, tests, mutates, and validates predictive trading signals (alphas) using an institutional-grade evolutionary architecture.
+BrainForge is an institutional-grade, fully automated quantitative research pipeline designed to mine highly uncorrelated, cross-sectional equity alphas on the WorldQuant Brain platform. Operating as a fully self-directed research agent, it continuously hypothesizes, tests, mutates, and validates predictive trading signals (alphas) using a rigorously penalized evolutionary architecture.
 
-## Gen-3 Architecture
+## Gen-4 Architecture
 
-The Gen-3 release marks a paradigm shift from traditional procedural generation to an LLM-guided, multi-objective evolutionary engine. It integrates compiler-grade structural analysis with advanced heuristic optimization to discover robust, high-Sharpe trading signals.
+The Gen-4 release abandons basic price/volume momentum, pivoting to advanced non-linear feature engineering, Volatility Risk Premium (VRP), and alternative data (Supply Chain, NLP Sentiment). It employs a heavily fortified **"Seed, Mutate, and Deflate"** paradigm to ensure Out-Of-Sample (OOS) survival and combat multiple-testing bias.
 
 ### Core Systems
 
-1. **LLM-Driven Ralph Loop (Thoughts Decompiler)**
-   At the heart of the Gen-3 architecture is the *Ralph Loop*—an LLM-driven cognitive framework that analyzes empirical performance data of generated signals. Using the Thoughts Decompiler, the agent reverse-engineers the mathematical intuition behind successful (and failed) alphas. It prompts the LLM to hypothesize structural improvements, allowing the system to learn from its search trajectory and intelligently bias future generation.
+1. **Seed, Mutate, and Deflate Paradigm**
+   - **Seed**: Gemini 1.5/2.5 generates structurally diverse mathematical templates targeting specific market anomalies (VRP, Cointegration, Entropy) using granular placeholders.
+   - **Mutate & Crossover**: An AST-based local Python engine dynamically hot-swaps placeholders with categorized local data dictionaries, performing AST sub-tree grafting (crossover) and non-destructive constant mutation.
+   - **Deflate**: Implements Bailey & López de Prado’s **Deflated Sharpe Ratio (DSR)** calculation using expected max Sharpe, empirical skewness, and kurtosis to harshly penalize overfit candidates.
 
-2. **AST-Aware Grammar-Guided Mutations**
-   Moving beyond brute-force permutations, BrainForge leverages Python's Abstract Syntax Trees (AST) and the FastExpr grammar to perform structurally sound mutations. 
-   - **Syntax Validity Guarantee**: By treating alphas as AST sub-trees, the engine conducts crossover and mutation operations that respect mathematical grammar.
-   - **Smart Grafting**: Structurally equivalent nodes (mapped via Data Dictionaries) are dynamically swapped without breaking syntactical integrity.
-   - **Pre-Flight Tautology Pruning**: An AST-based filter that scans for structurally bloated, zero-sum logic (e.g., `x/x` or `x-x`) prior to network submission, eliminating wasted API calls.
+2. **Orthogonal Spatial Forcing**
+   - To force the genetic algorithm to explore undiscovered mathematical subspaces, Gen-4 uses TF-IDF vectorization and Cosine Similarity to calculate an **Orthogonal Fitness** multiplier. 
+   - Candidates that are semantically correlated to existing elite alphas are heavily penalized, drastically reducing structural collinearity and maximizing portfolio diversification.
 
-3. **NSGA-II Pareto Sorting for Multi-Objective Optimization**
-   BrainForge evaluates alphas not just on Sharpe ratio, but across multiple dimensions of robustness (Returns, Drawdown, Turnover, Sub-Universe Performance). 
-   - The evolutionary engine employs Non-dominated Sorting Genetic Algorithm II (**NSGA-II**) to maintain a diverse frontier of elite alphas.
-   - By sorting candidate signals into Pareto fronts and applying crowding distance metrics, the system ensures a wide coverage of the mathematical search space, preventing premature convergence on local optima and significantly reducing over-correlation to existing strategies.
+3. **Compiler-Grade AST Syntax Validation**
+   - A local compiler frontend built with Python's native `ast` module strictly enforces `FastExpr` grammar.
+   - It validates arity, prunes tautologies (e.g., `x/x`), structurally neutralizes expressions, and explicitly whitelists continuous constraint `ast.keyword` nodes from destructive mutations.
 
-4. **Stealth Network Engine**
-   A robust execution layer built on `curl_cffi` to accurately route live authentication cookies, simulate real browser fingerprints, and seamlessly navigate complex API rate limits with dynamic exponential backoffs.
-
-## Autonomous Operation
-
-BrainForge is designed to operate autonomously:
-- It generates initial seeds via LLM context.
-- Simulates them against WorldQuant Brain endpoints.
-- Evaluates the results, decomposing failures and successes via the Ralph Loop.
-- Evolves the population using AST-aware mutations and NSGA-II selection.
-- Defends against over-correlation by automatically culling alphas too similar to the existing portfolio.
+4. **High-Concurrency Asynchronous Execution**
+   - The entire main loop runs asynchronously via `asyncio`.
+   - **Network Engine**: Built on `curl_cffi` for TLS impersonation. Features strict `asyncio.Semaphore` throttling with Gaussian jitter.
+   - **Authentication Lock**: Implements an `asyncio.Lock`-based refresh loop to safely reload session cookies mid-flight without "Thundering Herd" race conditions or dropped socket connections.
+   - **NSGA-II**: Non-dominated Sorting Genetic Algorithm evaluates alphas in batches, sorting across Adjusted Fitness (DSR + Orthogonality - Parsimony penalty) vs. Turnover.
 
 ## Setup & Installation
 
