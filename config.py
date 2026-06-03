@@ -12,10 +12,11 @@ PRICE_FIELDS = ["close", "vwap", "open", "high", "low"]
 VOLATILITY_FIELDS = ["implied_volatility_call_30", "implied_volatility_put_30", "implied_volatility_call_60", "implied_volatility_put_60"]
 MACRO_FIELDS = ["mdl53_jc5_5year", "mdl53_jc5_1year", "mdl53_jc5_10year"]
 SIZE_FIELDS = ["cap", "assets", "sales"]
-FUNDAMENTAL_FIELDS = ["actual_earnings_per_share_value", "accrued_liabilities_total"] # Keep some basics
+FUNDAMENTAL_FIELDS = ["est_eps", "bookvalue_ps", "sales", "assets"]
+SENTIMENT_FIELDS = ["news_short_interest"]
 MOMENTUM_FIELDS = ["volume", "returns", "adjfactor"]
 
-DATA_DICTIONARY = PRICE_FIELDS + VOLATILITY_FIELDS + MACRO_FIELDS + SIZE_FIELDS + FUNDAMENTAL_FIELDS + MOMENTUM_FIELDS
+DATA_DICTIONARY = PRICE_FIELDS + VOLATILITY_FIELDS + MACRO_FIELDS + SIZE_FIELDS + FUNDAMENTAL_FIELDS + SENTIMENT_FIELDS + MOMENTUM_FIELDS
 
 # Elite Transfer Learning Seeds
 QUANT_TEMPLATES = [
@@ -29,7 +30,13 @@ QUANT_TEMPLATES = [
     "group_neutralize(ts_decay_linear(group_rank(-1 * ts_delta(ts_zscore(ts_backfill({MACRO}, 2), {LOOKBACK_SHORT}) - ts_zscore(ts_backfill({MACRO}, 2), {LOOKBACK_SHORT}), {LOOKBACK_SHORT}), {NEUTRALIZATION}) / ts_std_dev(returns, {LOOKBACK_LONG}), {LOOKBACK_SHORT}), {NEUTRALIZATION})",
     
     # 4. The Macro Yield Curve (Z-Score Variant to force Long/Short balance)
-    "group_neutralize(ts_zscore(-1 * ts_delta(ts_zscore({MACRO}, {LOOKBACK_SHORT}) - ts_zscore({MACRO}, {LOOKBACK_SHORT}), {LOOKBACK_SHORT}), {LOOKBACK_LONG}) * ts_zscore({PRICE}, {LOOKBACK_SHORT}), {NEUTRALIZATION})"
+    "group_neutralize(ts_zscore(-1 * ts_delta(ts_zscore({MACRO}, {LOOKBACK_SHORT}) - ts_zscore({MACRO}, {LOOKBACK_SHORT}), {LOOKBACK_SHORT}), {LOOKBACK_LONG}) * ts_zscore({PRICE}, {LOOKBACK_SHORT}), {NEUTRALIZATION})",
+
+    # 5. Fundamental Value * Sentiment (Z-scored to force Long/Short balance and fix 100% concentration)
+    "group_neutralize(ts_zscore({FUNDAMENTAL} / {PRICE}, {LOOKBACK_LONG}) * ts_zscore({SENTIMENT}, {LOOKBACK_SHORT}), {NEUTRALIZATION})",
+    
+    # 6. Book Value + Mean Reversion (Z-scored to fix 2022 Drawdowns)
+    "group_neutralize(ts_zscore({FUNDAMENTAL}, {LOOKBACK_LONG}) + ts_zscore(-1 * ts_delta({PRICE}, {LOOKBACK_SHORT}) / ts_delay({PRICE}, {LOOKBACK_SHORT}), {LOOKBACK_SHORT}), {NEUTRALIZATION})"
 ]
 
 # Network Settings
