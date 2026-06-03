@@ -15,10 +15,10 @@ async def submit_to_portfolio():
     conn = sqlite3.connect("brain_memory.db")
     cursor = conn.cursor()
     
-    # Query for expressions that meet performance criteria and have an alpha_id
+    # Query for expressions that meet performance criteria and have a valid alpha_id
     cursor.execute('''
         SELECT expression, alpha_id FROM alpha_population 
-        WHERE sharpe >= 1.25 AND turnover <= 0.70 AND alpha_id IS NOT NULL AND alpha_id != ''
+        WHERE sharpe >= 1.25 AND turnover <= 0.70 AND alpha_id IS NOT NULL AND alpha_id != '' AND alpha_id != 'MANUAL_SEED'
     ''')
     winning_alphas = cursor.fetchall()
     conn.close()
