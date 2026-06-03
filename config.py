@@ -5,7 +5,7 @@ load_dotenv()
 
 # API Configurations
 WQ_BASE_URL = os.getenv("WQ_BASE_URL", "https://api.worldquantbrain.com")
-WQ_COOKIE = os.getenv("WQ_COOKIE", "cookieyes-consent=consentid:MnNBbnljSThGUWJQRkFSaE5SNXd1WmdJZXpTY1c0RG4,consent:yes,action:yes,necessary:yes,functional:yes,analytics:yes,performance:yes,advertisement:yes,other:yes; __zlcmid=1XjoXQxrdKEmm6w; t=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI1aHlvRzh2a2FMRmhmMHA1MEpiZUdlZDU2ZmtBcVF4byIsImV4cCI6MTc4MDQ2OTAwNCwiYW1yIjpbInB3ZCIsImZhY2UiXX0.KJgNOb7f1RgHu0-2xUgXiWWekPX-9LGlu2LKwhvtIWg")
+WQ_COOKIE = os.getenv("WQ_COOKIE", "cookieyes-consent=consentid:MnNBbnljSThGUWJQRkFSaE5SNXd1WmdJZXpTY1c0RG4,consent:yes,action:yes,necessary:yes,functional:yes,analytics:yes,performance:yes,advertisement:yes,other:yes; __zlcmid=1XjoXQxrdKEmm6w; t=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJvOHM2ZWdSNDRDWjM5TmxaTW1sdVJWU201cGFEeTVGYSIsImV4cCI6MTc4MDQ4MzQ1MiwiYW1yIjpbInB3ZCIsImZhY2UiXX0.uc-YHWrXuAg1fMtevwCi1pLhil3eJ9a9qUBqWkMuwsM")
 
 # Expanded Data Dictionary to support the seeds
 PRICE_FIELDS = ["close", "vwap", "open", "high", "low"]
