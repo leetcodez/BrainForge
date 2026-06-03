@@ -4,6 +4,7 @@ import random
 import ast
 import copy
 import os
+import sqlite3
 from typing import List, Dict
 from concurrent.futures import ThreadPoolExecutor
 
@@ -21,32 +22,24 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 class GeneticEngine:
-    """Handles the Seed-and-Mutate framework using Compiler-Grade AST manipulations & Bloat Control."""
-    
     @staticmethod
     def ast_depth(node):
-        """Calculates the absolute depth of an AST. Used for Parsimony Pressure."""
         if not isinstance(node, ast.AST):
             return 0
         return 1 + max((GeneticEngine.ast_depth(child) for child in ast.iter_child_nodes(node)), default=0)
 
     @staticmethod
     def hoist_mutation(expression: str) -> str:
-        """Actively shrinks tree bloat by hoisting a nested sub-tree to replace its parent."""
         try:
             tree = ast.parse(expression, mode='eval')
             calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call)]
             if len(calls) < 2:
-                return expression # Too shallow to hoist
+                return expression
             
-            # Select a random function call node
             parent = random.choice(calls)
-            # Find its children that are also function calls
             child_calls = [n for n in parent.args if isinstance(n, ast.Call)]
             if child_calls:
                 hoisted = random.choice(child_calls)
-                # We return the hoisted sub-tree as the new root (in a full AST walk we would patch the parent, 
-                # but returning the sub-tree directly acts as a massive pruning mechanism).
                 return ast.unparse(hoisted)
             return expression
         except Exception:
@@ -54,11 +47,9 @@ class GeneticEngine:
 
     @staticmethod
     def mutate(expression: str) -> str:
-        """Applies stochastic genetic mutation on AST nodes guaranteeing syntax validity."""
         if random.random() > config.MUTATION_RATE:
             return expression
             
-        # 1. Hoist Mutation Trigger (Bloat Control)
         if random.random() < 0.20:
             return GeneticEngine.hoist_mutation(expression)
             
@@ -71,7 +62,6 @@ class GeneticEngine:
                 
             node = random.choice(nodes)
             
-            # 2. Grammar-Guided Semantic Type Validation during Point Mutation
             if isinstance(node, ast.Name):
                 if node.id in config.PRICE_FIELDS:
                     node.id = random.choice(config.PRICE_FIELDS)
@@ -89,12 +79,11 @@ class GeneticEngine:
             ast.fix_missing_locations(tree)
             return ast.unparse(tree)
         except Exception as e:
-            logger.error(f"AST Mutation failed for {expression}: {e}")
+            logger.error(f"Mutation error: {e}")
             return expression
 
     @staticmethod
     def crossover(expr1: str, expr2: str) -> str:
-        """Performs compiler-grade AST Crossover by grafting mathematical sub-trees."""
         try:
             tree1 = ast.parse(expr1, mode='eval')
             tree2 = ast.parse(expr2, mode='eval')
@@ -128,7 +117,7 @@ class GeneticEngine:
                 return f"group_neutralize({child_expr}, {config.DEFAULT_NEUTRALIZATION})"
             return child_expr
         except Exception as e:
-            logger.error(f"AST Crossover failed between {expr1} and {expr2}: {e}")
+            logger.error(f"Crossover error: {e}")
             return expr1
 
 
@@ -141,33 +130,48 @@ class AlphaOrchestrator:
         self.submission_count = 0
         init_db()
         
-        # Spatial Memory
         self.history_exprs = []
         self.history_scores = []
         self.vectorizer = TfidfVectorizer(analyzer='char_wb', ngram_range=(3, 5))
         
-        # Experience Memory (Ralph Loop)
+        try:
+            conn = sqlite3.connect("brain_memory.db")
+            cursor = conn.cursor()
+            cursor.execute("SELECT expression, sharpe FROM alpha_population")
+            rows = cursor.fetchall()
+            for row in rows:
+                self.history_exprs.append(row[0])
+                self.history_scores.append(row[1])
+            conn.close()
+            logger.info(f"Loaded {len(self.history_exprs)} formulas.")
+        except Exception as e:
+            logger.error(f"Failed to load DB: {e}")
+        
         self.experience_memory = []
 
     async def _simulate_alpha(self, expression: str) -> tuple[float, float, str]:
-        """Asynchronously simulates an alpha and returns its fitness, turnover, and alpha_id."""
+        if expression in self.history_exprs:
+            idx = self.history_exprs.index(expression)
+            prev_score = self.history_scores[idx]
+            if prev_score < 1.0:
+                logger.info(f"Skipping duplicate: {expression}")
+                return prev_score, 1.0, ""
+
         if len(self.history_exprs) > 5:
             try:
                 vecs = self.vectorizer.fit_transform(self.history_exprs + [expression])
                 sims = cosine_similarity(vecs[-1:], vecs[:-1])[0]
                 max_sim = sims.max()
-                # Enforce literal string match only for spatial deduplication 
-                # (Prevents TF-IDF from aggressively blocking minor numeric variants in short formulas)
                 if max_sim >= 1.0:
                     idx = sims.argmax()
                     prev_score = self.history_scores[idx]
                     if prev_score < 1.0:
-                        logger.info(f"Spatial Memory: Skipping {expression} (Sim: {max_sim:.2f} to bad alpha)")
+                        logger.info(f"Skipping similar: {expression}")
                         return prev_score, 1.0, ""
             except Exception as e:
-                logger.warning(f"Spatial memory check failed: {e}")
+                logger.warning(f"Memory check failed: {e}")
 
-        logger.info(f"Submitting alpha for simulation: {expression}")
+        logger.info(f"Simulating: {expression}")
         payload = {
             "type": "REGULAR",
             "settings": {
@@ -190,7 +194,6 @@ class AlphaOrchestrator:
         try:
             response_data = await self.network.request("POST", "/simulations", json=payload)
             self.submission_count += 1
-            logger.info(f"Alpha successfully transmitted! (Total Session Submissions: {self.submission_count})")
                 
             if "Location" in response_data or "url" in response_data:
                 poll_url = response_data.get("Location") or response_data.get("url")
@@ -199,7 +202,7 @@ class AlphaOrchestrator:
                     result_data = await self.network.request("GET", poll_url.replace(config.WQ_BASE_URL, ""))
                     status = result_data.get("status")
                     if status == "ERROR":
-                        logger.error(f"WorldQuant API Error for {expression}: {result_data}")
+                        logger.error(f"API Error for {expression}")
                         return -1.0, 1.0, ""
                     elif status == "COMPLETE":
                         try:
@@ -209,24 +212,22 @@ class AlphaOrchestrator:
                             alpha_id = result_data.get("alpha", str(result_data.get("id", "")))
                             if isinstance(alpha_id, dict):
                                 alpha_id = alpha_id.get("id", "")
-                            logger.info(f"Live Alpha {expression} completed with Sharpe: {fitness:.2f} | Turnover: {turnover:.2%}")
+                            logger.info(f"Alpha {expression} Sharpe: {fitness:.2f} | Turnover: {turnover:.2%}")
                             return fitness, turnover, alpha_id
                         except Exception as parse_e:
-                            logger.error(f"Failed to parse metrics: {parse_e}")
+                            logger.error(f"Parse error: {parse_e}")
                             return -1.0, 1.0, ""
             return -1.0, 1.0, ""
         except Exception as e:
-            logger.error(f"Simulation failed for {expression}: {e}")
+            logger.error(f"Simulation failed: {e}")
             return -1.0, 1.0, ""
 
     def _nsga_ii_sort(self, population: List[Dict]) -> List[Dict]:
-        """Multi-Objective Optimization using Non-dominated Sorting and Crowding Distance."""
         fronts = [[]]
         for p in population:
             p['S'] = []
             p['n'] = 0
             for q in population:
-                # Objectives: Maximize adjusted_fitness, Minimize turnover
                 better_in_all = (p['adjusted_fitness'] >= q['adjusted_fitness']) and (p['turnover'] <= q['turnover'])
                 strictly_better_in_one = (p['adjusted_fitness'] > q['adjusted_fitness']) or (p['turnover'] < q['turnover'])
                 
@@ -255,13 +256,11 @@ class AlphaOrchestrator:
         
         fronts = fronts[:-1]
         
-        # Calculate Crowding Distance
         for front in fronts:
             l = len(front)
             if l == 0: continue
             for p in front: p['distance'] = 0.0
             
-            # Distance by Adjusted Fitness
             front.sort(key=lambda x: x['adjusted_fitness'])
             front[0]['distance'] = float('inf')
             front[-1]['distance'] = float('inf')
@@ -270,7 +269,6 @@ class AlphaOrchestrator:
                 for j in range(1, l - 1):
                     front[j]['distance'] += (front[j+1]['adjusted_fitness'] - front[j-1]['adjusted_fitness']) / (f_max - f_min)
                     
-            # Distance by Turnover
             front.sort(key=lambda x: x['turnover'])
             front[0]['distance'] = float('inf')
             front[-1]['distance'] = float('inf')
@@ -281,14 +279,12 @@ class AlphaOrchestrator:
         
         flattened = []
         for front in fronts:
-            # Sort front by crowding distance (descending) to preserve diversity
             front.sort(key=lambda x: (-x['distance']))
             flattened.extend(front)
             
         return flattened
 
     async def _check_correlation(self, expression: str, alpha_id: str) -> bool:
-        """Checks if the alpha is too correlated with the existing portfolio."""
         if not alpha_id:
             return False
             
@@ -302,25 +298,20 @@ class AlphaOrchestrator:
             
             max_corr = max([float(c) for c in correlations if c]) if correlations else 0
             if max_corr > 0.70:
-                logger.warning(f"Auto-Correlation Defense: Discarding {expression}. Max correlation is {max_corr:.2f}")
-                
-                # Feedback loop for correlation
-                thought = f"Expression '{expression}' achieved high Sharpe but is highly correlated (>0.70) to existing models. Search space is saturated here."
-                self.experience_memory.append(thought)
+                logger.warning(f"Discarding correlated: {expression}")
+                self.experience_memory.append(f"Expression '{expression}' high correlation.")
                 return True
         except Exception as e:
-            logger.error(f"Correlation check failed for {alpha_id}: {e}")
+            logger.error(f"Correlation check failed: {e}")
         return False
 
     async def _evaluate_population(self, expressions: List[str]):
-        """Evaluates a batch of alphas concurrently and manages Closed-Loop Learning."""
         tasks = []
         valid_expressions = []
         for expr in expressions:
             is_valid, corrected_expr = SyntaxValidator.parse_and_validate(expr)
             
             if is_valid and SyntaxValidator.is_tautology(corrected_expr):
-                logger.info(f"Pruner: Discarded tautological expression: {corrected_expr}")
                 is_valid = False
 
             if is_valid:
@@ -341,7 +332,6 @@ class AlphaOrchestrator:
                 self.history_exprs.append(expr)
                 self.history_scores.append(score)
                 
-                # 1. Parsimony Pressure Execution
                 try:
                     ast_tree = ast.parse(expr, mode='eval')
                     depth = GeneticEngine.ast_depth(ast_tree)
@@ -357,16 +347,12 @@ class AlphaOrchestrator:
                     "adjusted_fitness": adjusted_fitness
                 })
                 
-                # Save to DB
                 save_alpha(expr, alpha_id, 0, score, turnover, adjusted_fitness, depth)
                 
-                # 2. Thoughts Decompiler (Agentic Feedback Generation)
                 if score < 0.20:
-                    thought = f"Expression '{expr}' failed (Sharpe {score:.2f}). The operators or fundamental datasets used lack robust predictive edge."
-                    self.experience_memory.append(thought)
+                    self.experience_memory.append(f"Expression '{expr}' failed (Sharpe {score:.2f}).")
                 elif turnover >= 0.80:
-                    thought = f"Expression '{expr}' failed due to massive turnover ({turnover:.2%}). Utilize smoothing operators like ts_decay_linear to reduce transactional friction."
-                    self.experience_memory.append(thought)
+                    self.experience_memory.append(f"Expression '{expr}' failed high turnover.")
                 
                 if 1.0 < score < 1.25 and turnover < 0.60:
                     generalized_expr = expr.replace("10", "{d1}").replace("20", "{d2}")
@@ -377,28 +363,23 @@ class AlphaOrchestrator:
                     if optimized_sharpe > 1.25 and turnover < 0.70:
                         is_correlated = await self._check_correlation(optimal_expr, tuned_alpha_id)
                         if not is_correlated:
-                            logger.info(f"🏆 HIGH QUALITY TUNED WINNER FOUND: {optimal_expr} (Sharpe: {optimized_sharpe:.2f} | Turnover: {turnover:.2%})")
+                            logger.info(f"🏆 Tuned Winner: {optimal_expr}")
                 
                 elif score > 1.25 and turnover < 0.70:
                     is_correlated = await self._check_correlation(expr, alpha_id)
                     if not is_correlated:
-                        logger.info(f"🏆 HIGH QUALITY BASE WINNER FOUND: {expr} (Sharpe: {score:.2f} | Turnover: {turnover:.2%})")
+                        logger.info(f"🏆 Base Winner: {expr}")
 
     def _select_parents(self) -> List[str]:
-        """Parent selection utilizes NSGA-II to capture Pareto-optimal diversity."""
-        # Get top tournament_size individuals from the NSGA-II sorted population
         tournament = self.population[:config.TOURNAMENT_SIZE]
-        # In an elitist MOEA, the population is already sorted by Pareto Front and Crowding Distance
-        # So we just pull the top 2 from the elite selection
         if len(tournament) < 2:
             return [t["expression"] for t in tournament] * 2 if tournament else ["", ""]
         return [tournament[0]["expression"], tournament[1]["expression"]]
 
     async def run_factory_loop(self, generations: int = 5):
-        logger.info("Initializing Gen-2 Alpha Factory with NSGA-II & Parsimony Controls...")
+        logger.info("Initializing factory...")
         
         template_count = max(1, config.POPULATION_SIZE // 10)
-        # Pass the Experience Memory to the LLM
         templates = self.llm_generator.generate_seed_alphas(template_count, experience_memory=self.experience_memory)
         
         valid_templates = []
@@ -409,15 +390,12 @@ class AlphaOrchestrator:
                 valid_templates.append(template)
                 
         if not valid_templates:
-            logger.info("Injecting Quant Library templates for robust bootstrapping.")
             valid_templates = config.QUANT_TEMPLATES
 
         expanded_population = []
         for template in valid_templates:
             for _ in range(3):
                 expr = template
-                
-                # Handle bracketed AND unbracketed variants generated by LLM
                 for placeholder, field_list in [
                     ("{PRICE}", config.PRICE_FIELDS), ("PRICE", config.PRICE_FIELDS),
                     ("{FUNDAMENTAL}", config.FUNDAMENTAL_FIELDS), ("FUNDAMENTAL", config.FUNDAMENTAL_FIELDS),
@@ -425,6 +403,7 @@ class AlphaOrchestrator:
                     ("{VOLATILITY}", config.VOLATILITY_FIELDS), ("VOLATILITY", config.VOLATILITY_FIELDS),
                     ("{MACRO}", config.MACRO_FIELDS), ("MACRO", config.MACRO_FIELDS),
                     ("{SIZE}", config.SIZE_FIELDS), ("SIZE", config.SIZE_FIELDS),
+                    ("{SENTIMENT}", config.SENTIMENT_FIELDS), ("SENTIMENT", config.SENTIMENT_FIELDS),
                     ("{FIELD}", config.DATA_DICTIONARY), ("FIELD", config.DATA_DICTIONARY)
                 ]:
                     while placeholder in expr:
@@ -440,18 +419,13 @@ class AlphaOrchestrator:
                 expanded_population.append(expr)
                 
         expanded_population = expanded_population[:config.POPULATION_SIZE]
-
         await self._evaluate_population(expanded_population)
         
         for gen in range(generations):
-            logger.info(f"--- Starting Generation {gen+1} (NSGA-II Frontier) ---")
-            
-            # Sort the entire population using Pareto Dominance
+            logger.info(f"--- Generation {gen+1} ---")
             self.population = self._nsga_ii_sort(self.population)
-            
             new_generation = []
             
-            # Elitism: carry over the top Pareto Front performers
             elite_count = max(1, int(config.POPULATION_SIZE * config.ELITISM_RATIO))
             new_generation.extend([p["expression"] for p in self.population[:elite_count]])
             
@@ -462,14 +436,8 @@ class AlphaOrchestrator:
                 offspring = GeneticEngine.mutate(offspring)
                 new_generation.append(offspring)
             
-            # We don't wipe the population in NSGA-II, we merge and sort the N+N population to preserve elites,
-            # but to save API limits and memory in this specific pipeline, we keep the population rolling and growing
-            # and just select the top N after the next evaluation loop.
-            # To prevent extreme RAM growth, we cap the standing population before evaluating the new one.
             self.population = self.population[:config.POPULATION_SIZE]
             await self._evaluate_population(new_generation)
-
-        logger.info("Alpha Factory execution completed.")
 
     async def shutdown(self):
         await self.network.close()

@@ -12,7 +12,7 @@ class LLMSeedGenerator:
     def __init__(self):
         self.model_name = config.LLM_MODEL
         genai.configure(api_key=config.GEMINI_API_KEY)
-        
+
         self.base_prompt = (
             "You are a world-class quantitative analyst creating alphas for WorldQuant Brain using FastExpr. "
             "Your output must ONLY be a raw JSON array of strings, where each string is a distinct FastExpr mathematical formula template. "
@@ -22,7 +22,7 @@ class LLMSeedGenerator:
             "Do NOT use group operators like group_neutralize; they will be applied automatically by the orchestrator. "
             "Ensure the formulas are syntactically valid and mathematically sound."
         )
-        
+
         self.model = genai.GenerativeModel(
             model_name=self.model_name,
             system_instruction=self.base_prompt,
@@ -33,12 +33,10 @@ class LLMSeedGenerator:
         )
 
     def generate_seed_alphas(self, count: int, experience_memory: List[str] = None) -> List[str]:
-        """Generates an initial seed population, leveraging Closed-Loop RAG (Ralph Loop) to avoid past failures."""
         prompt = f"Generate an array of {count} highly distinct FastExpr templates. Return STRICTLY a JSON list of strings."
-        
+
         if experience_memory:
-            prompt += "\n\nCRITICAL EXPERIENCE MEMORY (Learn from past failures via Thoughts Decompiler):\n"
-            # Pass the most recent profound failures back to the LLM to close the cognitive loop
+            prompt += "\n\nCRITICAL EXPERIENCE MEMORY:\n"
             for thought in experience_memory[-10:]:
                 prompt += f"- {thought}\n"
             prompt += "\nDo NOT generate structures that resemble the specific failures listed above. Pivot to uncorrelated mathematical anomalies."
@@ -47,18 +45,18 @@ class LLMSeedGenerator:
             try:
                 logger.info(f"Requesting bulk batch of {count} templates from Gemini (Attempt {attempt+1}/3)...")
                 response = self.model.generate_content(prompt)
-                
+
                 if response.text:
                     raw_text = response.text.strip()
                     try:
                         seeds = json.loads(raw_text)
                         if isinstance(seeds, list):
-                            logger.info(f"Successfully generated {len(seeds)} templates via Closed-Loop RAG.")
+                            logger.info(f"Successfully generated {len(seeds)} templates.")
                             time.sleep(4.5) 
                             return seeds
                     except json.JSONDecodeError as e:
                         logger.error(f"Failed to parse JSON response: {e}")
-                        
+
             except Exception as e:
                 logger.error(f"Gemini Generation failed: {e}")
                 if "429" in str(e) or "Quota exceeded" in str(e):
@@ -66,6 +64,6 @@ class LLMSeedGenerator:
                     time.sleep(30)
                 else:
                     time.sleep(5)
-                    
+
         logger.warning("Failed to generate seeds from LLM after 3 attempts.")
         return []

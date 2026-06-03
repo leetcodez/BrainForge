@@ -3,11 +3,9 @@ import sqlite3
 DB_NAME = "brain_memory.db"
 
 def init_db():
-    """Initializes the SQLite schema for the Gen-3 factory."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # Table 1: The surviving alpha population
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS alpha_population (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,7 +21,6 @@ def init_db():
         )
     ''')
     
-    # Table 2: Vector memory for fast TF-IDF deduplication
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS vector_memory (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,7 +33,6 @@ def init_db():
     conn.close()
 
 def save_alpha(expression, alpha_id, gen, sharpe, turnover, fitness, depth, is_tuned=0):
-    """Logs an evaluated alpha to the database."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     try:
@@ -46,12 +42,11 @@ def save_alpha(expression, alpha_id, gen, sharpe, turnover, fitness, depth, is_t
         ''', (expression, alpha_id, gen, sharpe, turnover, fitness, depth, is_tuned))
         conn.commit()
     except sqlite3.IntegrityError:
-        pass # Ignore duplicates
+        pass
     finally:
         conn.close()
 
 def get_top_population(limit=150):
-    """Retrieves the strongest alphas for the next generation's crossover."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute('''

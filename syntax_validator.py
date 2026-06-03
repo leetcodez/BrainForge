@@ -6,14 +6,12 @@ logger = logging.getLogger(__name__)
 
 class AlphaSyntaxValidator(ast.NodeVisitor):
     def __init__(self):
-        # Whitelisted AST nodes for structural security
         self.allowed_nodes = {
             ast.Module, ast.Expression, ast.Expr, ast.Call, ast.Name, ast.Load,
             ast.BinOp, ast.UnaryOp, ast.Add, ast.Sub, ast.Mult, ast.Div,
             ast.USub, ast.UAdd, ast.Constant, ast.Attribute, ast.List
         }
         
-        # Allowed operators in FastExpr
         self.allowed_operators = {
             'add', 'sqrt', 'log', 'subtract', 'signed_power', 'sign', 'reverse', 'power', 
             'multiply', 'min', 'max', 'inverse', 'densify', 'abs', 'divide', 'and', 'equal', 
@@ -42,7 +40,6 @@ class AlphaSyntaxValidator(ast.NodeVisitor):
 class SyntaxValidator:
     @staticmethod
     def is_tautology(expression: str) -> bool:
-        """Upgrade #3: Pre-Flight Statistical Pruning. Discards mathematically bloated formulas (e.g. x/x)."""
         try:
             tree = ast.parse(expression, mode='eval')
             for node in ast.walk(tree):
@@ -55,12 +52,8 @@ class SyntaxValidator:
 
     @staticmethod
     def parse_and_validate(expression: str) -> bool:
-        """Parses LLM output into AST and validates against allowed node types and operators."""
         try:
-            # Basic deterministic auto-correction: simple regex replacements
             expression = SyntaxValidator._rectify_syntax(expression)
-            
-            # The ast.parse mode='eval' expects a single expression.
             tree = ast.parse(expression, mode='eval')
             validator = AlphaSyntaxValidator()
             validator.visit(tree)
@@ -71,9 +64,6 @@ class SyntaxValidator:
 
     @staticmethod
     def _rectify_syntax(expression: str) -> str:
-        """Automatically resolves minor LLM syntax hallucinations (e.g., missing lookback parameters)."""
-        # Convert standalone variables like ts_mean(close) -> ts_mean(close, 20) as an auto-correction example
         expression = re.sub(r'ts_mean\(\s*([a-zA-Z_0-9]+)\s*\)', r'ts_mean(\1, 20)', expression, flags=re.IGNORECASE)
-        # Fix missing commas in ts_max(close 20) -> ts_max(close, 20)
         expression = re.sub(r'([a-zA-Z_0-9]+)\s+(\d+)', r'\1, \2', expression)
         return expression.strip()

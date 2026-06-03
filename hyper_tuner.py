@@ -3,7 +3,6 @@ import asyncio
 import logging
 import nest_asyncio
 
-# Apply the patch to allow nested event loops
 nest_asyncio.apply()
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -11,20 +10,17 @@ optuna.logging.set_verbosity(optuna.logging.WARNING)
 class AlphaTuner:
     def __init__(self, base_expression, simulate_func):
         self.base_expression = base_expression
-        self.simulate_func = simulate_func # Async function
+        self.simulate_func = simulate_func
         
     def objective(self, trial):
-        """Optuna objective function to maximize Sharpe."""
         d1 = trial.suggest_int("d1", 2, 60)
         d2 = trial.suggest_int("d2", 5, 120)
         
         candidate_expr = self.base_expression.replace("{d1}", str(d1)).replace("{d2}", str(d2))
         
-        # Bridge sync Optuna to async simulator
         loop = asyncio.get_event_loop()
         sharpe, turnover, alpha_id = loop.run_until_complete(self.simulate_func(candidate_expr))
         
-        # Store alpha_id so we can retrieve the best one later
         trial.set_user_attr("alpha_id", alpha_id)
         
         if turnover > 0.70:
@@ -33,7 +29,6 @@ class AlphaTuner:
         return sharpe
 
     def run_tuning(self, n_trials=15):
-        """Executes the Bayesian search matrix."""
         print(f"[*] Commencing Bayesian Tuning on base structure...")
         study = optuna.create_study(direction="maximize")
         study.optimize(self.objective, n_trials=n_trials)
