@@ -156,7 +156,9 @@ class AlphaOrchestrator:
                 vecs = self.vectorizer.fit_transform(self.history_exprs + [expression])
                 sims = cosine_similarity(vecs[-1:], vecs[:-1])[0]
                 max_sim = sims.max()
-                if max_sim > 0.98:
+                # Enforce literal string match only for spatial deduplication 
+                # (Prevents TF-IDF from aggressively blocking minor numeric variants in short formulas)
+                if max_sim >= 1.0:
                     idx = sims.argmax()
                     prev_score = self.history_scores[idx]
                     if prev_score < 1.0:
