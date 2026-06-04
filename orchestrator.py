@@ -181,6 +181,7 @@ class AlphaOrchestrator:
         self.sim_semaphore = asyncio.Semaphore(config.MAX_CONCURRENT_SIMULATIONS)
         self.experience_memory = []
         self._initialized = False
+        self._grid_searched = set()
 
     async def initialize(self):
         if self._initialized:
@@ -513,6 +514,40 @@ class AlphaOrchestrator:
             if score > 1.25 and turnover < 0.70:
                 if not await self._check_correlation(expr, alpha_id):
                     logger.info(f"★ WINNER: {expr} | Uni: {universe} | Decay: {decay}")
+                    asyncio.create_task(self._run_grid_search(expr))
+
+    async def _run_grid_search(self, original_expr: str):
+        try:
+            tree = ast.parse(original_expr, mode='eval')
+            inner_expr = original_expr
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Call) and getattr(node.func, 'id', '') == 'group_neutralize':
+                    if len(node.args) >= 1:
+                        inner_expr = ast.unparse(node.args[0])
+                    break
+        except Exception:
+            return
+            
+        canonical_inner = SyntaxValidator.canonicalize(inner_expr)
+        if canonical_inner in self._grid_searched:
+            return
+        self._grid_searched.add(canonical_inner)
+
+        logger.info(f"🚀 Launching Hyper-Grid Search for: {inner_expr}")
+        
+        combinations = []
+        for uni in config.UNIVERSES:
+            for dec in config.DECAYS:
+                for neut in config.NEUTRALIZATIONS:
+                    candidate_expr = f"group_neutralize({inner_expr}, {neut})"
+                    combinations.append({
+                        "expression": candidate_expr,
+                        "universe": uni,
+                        "decay": dec
+                    })
+        
+        logger.info(f"Grid searching {len(combinations)} combinations...")
+        asyncio.create_task(self._evaluate_population(combinations))
 
     def _select_parents(self) -> List[Dict]:
         tournament = self.population[: config.TOURNAMENT_SIZE]
