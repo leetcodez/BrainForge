@@ -66,7 +66,7 @@ class GeneticEngine:
     def _ensure_neutralized(expression: str) -> str:
         if "group_neutralize" in expression:
             return expression
-        return f"group_neutralize({expression}, {config.DEFAULT_NEUTRALIZATION})"
+        return f"group_neutralize({expression}, {random.choice(config.NEUTRALIZATIONS)})"
 
     @staticmethod
     def hoist_mutation(expression: str) -> str:
@@ -185,19 +185,22 @@ class AlphaOrchestrator:
     async def initialize(self):
         if self._initialized:
             return
-
         await self.db.init_db()
         try:
             rows = await self.db.load_history()
-            for expression, sharpe in rows:
-                canonical_expr = SyntaxValidator.canonicalize(expression)
+            for expression, universe, decay, sharpe in rows:
+                try:
+                    canonical = SyntaxValidator.canonicalize(expression)
+                except Exception:
+                    canonical = expression
+                
+                cache_key = f"{canonical}|{universe}|{decay}"
                 self.history_exprs.append(expression)
                 self.history_scores.append(sharpe)
-                self.history_scores_by_canonical[canonical_expr] = sharpe
-            logger.info(f"Loaded {len(self.history_exprs)} formulas.")
+                self.history_scores_by_canonical[cache_key] = sharpe
+            logger.info(f"Loaded {len(self.history_exprs)} historical formulas.")
         except Exception as e:
-            logger.error(f"Failed to load DB: {e}")
-
+            logger.error(f"Failed to load history: {e}")
         self._initialized = True
 
     @staticmethod
@@ -227,19 +230,24 @@ class AlphaOrchestrator:
 
         return config.DEFAULT_TRACK_RECORD_LENGTH
 
-    async def _simulate_alpha(self, expression: str) -> tuple[float, float, str, float, float, int]:
-        try:
-            canonical_expr = SyntaxValidator.canonicalize(expression)
-        except Exception:
-            canonical_expr = expression
+    async def _simulate_alpha(
+        self, expression: str, universe: str, decay: int
+    ) -> tuple[float, float, str, float, float, int]:
+        _failed = (-1.0, 1.0, "", 0.0, 3.0, config.DEFAULT_TRACK_RECORD_LENGTH)
 
-        prev_score = self.history_scores_by_canonical.get(canonical_expr)
-        if prev_score is not None:
-            if prev_score < 1.0:
-                logger.info(f"Skipping duplicate: {expression}")
-                return prev_score, 1.0, "", 0.0, 3.0, config.DEFAULT_TRACK_RECORD_LENGTH
+        try:
+            canonical = SyntaxValidator.canonicalize(expression)
+        except Exception:
+            canonical = expression
+
+        cache_key = f"{canonical}|{universe}|{decay}"
+        prev = self.history_scores_by_canonical.get(cache_key)
+        if prev is not None and prev < 1.0:
+            logger.info(f"Skip duplicate: {expression} ({universe}, {decay})")
+            return prev, 1.0, "", 0.0, 3.0, config.DEFAULT_TRACK_RECORD_LENGTH
 
         async with self.sim_semaphore:
+            # TF-IDF near-duplicate check
             if len(self.history_exprs) > 5:
                 try:
                     loop = asyncio.get_running_loop()
@@ -261,24 +269,24 @@ class AlphaOrchestrator:
                 except Exception as e:
                     logger.warning(f"Memory check failed: {e}")
 
-            logger.info(f"Simulating: {expression}")
+            logger.info(f"Simulating: {expression} | Uni: {universe} | Decay: {decay}")
             payload = {
                 "type": "REGULAR",
                 "settings": {
                     "instrumentType": config.DEFAULT_INSTRUMENT,
                     "region": "USA",
-                    "universe": "TOP3000",
+                    "universe": universe,
                     "delay": config.DEFAULT_DELAY,
-                    "decay": config.DEFAULT_DECAY,
-                    "neutralization": config.DEFAULT_NEUTRALIZATION,
+                    "decay": decay,
+                    "neutralization": "NONE",
                     "truncation": config.DEFAULT_TRUNCATION,
                     "pasteurization": "ON",
                     "unitHandling": "VERIFY",
                     "nanHandling": "ON",
                     "language": "FASTEXPR",
-                    "visualization": False
+                    "visualization": False,
                 },
-                "regular": expression
+                "regular": expression,
             }
 
             try:
@@ -305,7 +313,9 @@ class AlphaOrchestrator:
                                 alpha_id = result_data.get("alpha", str(result_data.get("id", "")))
                                 if isinstance(alpha_id, dict):
                                     alpha_id = alpha_id.get("id", "")
-                                logger.info(f"Alpha {expression} Sharpe: {fitness:.2f} | Turnover: {turnover:.2%}")
+                                
+                                self.history_scores_by_canonical[cache_key] = fitness
+                                logger.info(f"Sharpe={fitness:.2f} | Turnover={turnover:.2%} | {universe} | Decay: {decay} | {expression}")
                                 return fitness, turnover, alpha_id, skew, kurtosis, track_record_length
                             except Exception as parse_e:
                                 logger.error(f"Parse error: {parse_e}")
@@ -398,108 +408,117 @@ class AlphaOrchestrator:
             logger.error(f"Correlation check failed: {e}")
         return False
 
-    async def _evaluate_population(self, expressions: List[str]):
+    async def _evaluate_population(self, candidates: List[Dict]):
+        _failed = (-1.0, 1.0, "", 0.0, 3.0, config.DEFAULT_TRACK_RECORD_LENGTH)
         tasks = []
-        valid_expressions = []
-        failed_result = (-1.0, 1.0, "", 0.0, 3.0, config.DEFAULT_TRACK_RECORD_LENGTH)
-        for expr in expressions:
-            is_valid, corrected_expr = SyntaxValidator.parse_and_validate(expr)
+        valid_candidates = []
 
-            if is_valid and SyntaxValidator.is_tautology(corrected_expr):
+        for candidate in candidates:
+            expr = candidate["expression"]
+            is_valid, corrected = SyntaxValidator.parse_and_validate(expr)
+            if is_valid and SyntaxValidator.is_tautology(corrected):
                 is_valid = False
 
             if is_valid:
-                if "group_neutralize" not in corrected_expr:
-                    final_expr = f"group_neutralize({corrected_expr}, {config.DEFAULT_NEUTRALIZATION})"
+                if "group_neutralize" not in corrected and "group_scale" not in corrected:
+                    final = f"group_neutralize({corrected}, {random.choice(config.NEUTRALIZATIONS)})"
                 else:
-                    final_expr = corrected_expr
-                final_expr = SyntaxValidator.canonicalize(final_expr)
-                valid_expressions.append(final_expr)
-                tasks.append(self._simulate_alpha(final_expr))
+                    final = corrected
+                final = SyntaxValidator.canonicalize(final)
+                candidate["expression"] = final
+                valid_candidates.append(candidate)
+                tasks.append(self._simulate_alpha(final, candidate["universe"], candidate["decay"]))
             else:
-                valid_expressions.append(expr)
-                tasks.append(asyncio.sleep(0, result=failed_result))
+                valid_candidates.append(candidate)
+                tasks.append(asyncio.sleep(0, result=_failed))
 
         results = await asyncio.gather(*tasks)
 
-        elite_exprs = [p["expression"] for p in self.population[:max(1, int(config.POPULATION_SIZE * config.ELITISM_RATIO))]]
+        elite_exprs = [
+            p["expression"]
+            for p in self.population[: max(1, int(config.POPULATION_SIZE * config.ELITISM_RATIO))]
+        ]
         records = []
 
-        for expr, (score, turnover, alpha_id, skew, kurtosis, track_record_length) in zip(valid_expressions, results):
-            if score >= -1.0:
-                try:
-                    canonical_expr = SyntaxValidator.canonicalize(expr)
-                except Exception:
-                    canonical_expr = expr
-                self.history_exprs.append(expr)
-                self.history_scores.append(score)
-                self.history_scores_by_canonical[canonical_expr] = score
+        for candidate, (score, turnover, alpha_id, skew, kurtosis, trl) in zip(valid_candidates, results):
+            if score < -1.0:
+                continue
+                
+            expr = candidate["expression"]
+            universe = candidate["universe"]
+            decay = candidate["decay"]
 
-                try:
-                    ast_tree = ast.parse(expr, mode='eval')
-                    depth = GeneticEngine.ast_depth(ast_tree)
-                except:
-                    depth = 5
+            self.history_exprs.append(expr)
+            self.history_scores.append(score)
 
-                # Deflated Sharpe Ratio calculation
-                dsr_score = self.deflation_engine.calculate_dsr(
-                    sharpe=score,
-                    skew=skew,
-                    kurtosis=kurtosis,
-                    track_record_length=track_record_length,
-                    num_trials=max(10, self.submission_count),
-                    var_trials=0.5
-                )
-                records.append({
-                    "expression": expr,
-                    "score": score,
-                    "turnover": turnover,
-                    "alpha_id": alpha_id,
-                    "depth": depth,
-                    "dsr_score": dsr_score,
-                })
+            try:
+                depth = GeneticEngine.ast_depth(ast.parse(expr, mode="eval"))
+            except Exception:
+                depth = 5
+
+            dsr = self.deflation_engine.calculate_dsr(
+                sharpe=score,
+                skew=skew,
+                kurtosis=kurtosis,
+                track_record_length=trl,
+                num_trials=max(10, self.submission_count),
+                var_trials=0.5,
+            )
+            records.append({
+                "expression": expr,
+                "universe": universe,
+                "decay": decay,
+                "score": score,
+                "turnover": turnover,
+                "alpha_id": alpha_id,
+                "depth": depth,
+                "dsr_score": dsr,
+            })
 
         loop = asyncio.get_running_loop()
-        adjusted_fitnesses = await loop.run_in_executor(
+        adjusted = await loop.run_in_executor(
             None,
             self.deflation_engine.calculate_orthogonal_fitness_batch,
-            [record["expression"] for record in records],
+            [r["expression"] for r in records],
             elite_exprs,
-            [record["dsr_score"] for record in records]
+            [r["dsr_score"] for r in records],
         )
 
-        for record, adjusted_fitness in zip(records, adjusted_fitnesses):
+        for record, adj_fitness in zip(records, adjusted):
             expr = record["expression"]
+            universe = record["universe"]
+            decay = record["decay"]
             score = record["score"]
             turnover = record["turnover"]
             depth = record["depth"]
             alpha_id = record["alpha_id"]
-            adjusted_fitness = adjusted_fitness - (config.PARSIMONY_COEFFICIENT * depth)
+            final_fitness = adj_fitness - config.PARSIMONY_COEFFICIENT * depth
 
             self.population.append({
                 "expression": expr,
+                "universe": universe,
+                "decay": decay,
                 "fitness": score,
                 "turnover": turnover,
-                "adjusted_fitness": adjusted_fitness,
+                "adjusted_fitness": final_fitness,
             })
 
-            await self.db.save_alpha(expr, alpha_id, 0, score, turnover, adjusted_fitness, depth)
+            await self.db.save_alpha(expr, universe, decay, alpha_id, 0, score, turnover, final_fitness, depth)
 
             if score < 0.20:
                 self.experience_memory.append(f"Expression '{expr}' failed (Sharpe {score:.2f}).")
             elif turnover >= 0.80:
-                self.experience_memory.append(f"Expression '{expr}' failed high turnover.")
+                self.experience_memory.append(f"Expression '{expr}' failed with high turnover.")
 
             if score > 1.25 and turnover < 0.70:
-                is_correlated = await self._check_correlation(expr, alpha_id)
-                if not is_correlated:
-                    logger.info(f"Base Winner: {expr}")
+                if not await self._check_correlation(expr, alpha_id):
+                    logger.info(f"★ WINNER: {expr} | Uni: {universe} | Decay: {decay}")
 
-    def _select_parents(self) -> List[str]:
-        tournament = self.population[:config.TOURNAMENT_SIZE]
+    def _select_parents(self) -> List[Dict]:
+        tournament = self.population[: config.TOURNAMENT_SIZE]
         if len(tournament) < 2:
-            return [t["expression"] for t in tournament] * 2 if tournament else ["", ""]
-        return [tournament[0]["expression"], tournament[1]["expression"]]
+            return [tournament[0], tournament[0]] if tournament else [{}, {}]
+        return [tournament[0], tournament[1]]
 
     @staticmethod
     async def _run_blocking(func, *args):
@@ -523,8 +542,12 @@ class AlphaOrchestrator:
         return valid_templates
 
     @staticmethod
-    def _expand_templates(templates: List[str], variants_per_template: int = 3, limit: int | None = None) -> List[str]:
-        expanded_population = []
+    def _expand_templates(
+        templates: List[str],
+        variants_per_template: int = 3,
+        limit: int | None = None,
+    ) -> List[Dict]:
+        expanded = []
         placeholder_groups = [
             ("{PRICE}", config.PRICE_FIELDS), ("PRICE", config.PRICE_FIELDS),
             ("{FUNDAMENTAL}", config.FUNDAMENTAL_FIELDS), ("FUNDAMENTAL", config.FUNDAMENTAL_FIELDS),
@@ -543,70 +566,125 @@ class AlphaOrchestrator:
                 for placeholder, field_list in placeholder_groups:
                     while placeholder in expr:
                         expr = expr.replace(placeholder, random.choice(field_list), 1)
-
                 expr = expr.replace("{LOOKBACK_SHORT}", str(random.choice([5, 10, 20])))
                 expr = expr.replace("{LOOKBACK_LONG}", str(random.choice([60, 120, 250])))
                 expr = expr.replace("LOOKBACK_SHORT", str(random.choice([5, 10, 20])))
                 expr = expr.replace("LOOKBACK_LONG", str(random.choice([60, 120, 250])))
-                expr = expr.replace("{NEUTRALIZATION}", config.DEFAULT_NEUTRALIZATION)
-                expr = expr.replace("NEUTRALIZATION", config.DEFAULT_NEUTRALIZATION)
-                expanded_population.append(expr)
-
-                if limit and len(expanded_population) >= limit:
-                    return expanded_population
-
-        return expanded_population
+                
+                neutralization = random.choice(config.NEUTRALIZATIONS)
+                expr = expr.replace("{NEUTRALIZATION}", neutralization)
+                expr = expr.replace("NEUTRALIZATION", neutralization)
+                
+                expanded.append({
+                    "expression": expr,
+                    "universe": random.choice(config.UNIVERSES),
+                    "decay": random.choice(config.DECAYS)
+                })
+                
+                if limit and len(expanded) >= limit:
+                    return expanded
+        return expanded
 
     async def run_factory_loop(self, generations: int = 5):
         await self.initialize()
-        logger.info("Initializing factory...")
+        logger.info("=== Gen-4 Alpha Factory initialised ===")
+
+        # Attempt to resume from database!
+        try:
+            top_alphas = await self.db.get_top_population(limit=config.POPULATION_SIZE)
+        except Exception as e:
+            logger.warning(f"Could not load previous alphas from DB: {e}")
+            top_alphas = []
+
+        if top_alphas:
+            logger.info(f"🧬 Resuming genetic lineage from {len(top_alphas)} elite alphas stored in DB.")
+            for expr, uni, dec, sharpe, turnover, depth in top_alphas:
+                dsr = self.deflation_engine.calculate_dsr(
+                    sharpe=sharpe, skew=0.0, kurtosis=3.0, track_record_length=1000, num_trials=10, var_trials=0.5
+                )
+                adj_fitness = dsr - (config.PARSIMONY_COEFFICIENT * depth)
+                self.population.append({
+                    "expression": expr,
+                    "universe": uni,
+                    "decay": dec,
+                    "fitness": sharpe,
+                    "turnover": turnover,
+                    "adjusted_fitness": adj_fitness
+                })
 
         template_count = max(1, config.POPULATION_SIZE // 10)
         templates = await self._generate_templates(template_count)
+        valid_templates = self._valid_templates(templates) or config.QUANT_TEMPLATES
 
-        valid_templates = self._valid_templates(templates)
-
-        if not valid_templates:
-            valid_templates = config.QUANT_TEMPLATES
-
-        expanded_population = self._expand_templates(valid_templates, variants_per_template=3, limit=config.POPULATION_SIZE)
-        await self._evaluate_population(expanded_population)
+        needed_seeds = max(0, config.POPULATION_SIZE - len(self.population))
+        if needed_seeds > 0:
+            seed_population = self._expand_templates(
+                valid_templates, variants_per_template=3, limit=needed_seeds
+            )
+            await self._evaluate_population(seed_population)
 
         for gen in range(generations):
-            logger.info(f"--- Generation {gen+1} ---")
+            logger.info(f"── Generation {gen + 1}/{generations} ──")
             self.population = self._nsga_ii_sort(self.population)
 
-            if self.population and all(p['fitness'] <= 0 for p in self.population[:10]):
-                logger.error("Population collapse detected. All top alphas are failing.")
+            if self.population and all(p["fitness"] <= 0 for p in self.population[:10]):
+                logger.error("Population collapse detected. All top alphas failing.")
 
-            new_generation = []
+            new_gen: List[Dict] = []
             elite_count = max(1, int(config.POPULATION_SIZE * config.ELITISM_RATIO))
-            new_generation.extend([p["expression"] for p in self.population[:elite_count]])
+            
+            new_gen.extend([
+                {
+                    "expression": p["expression"],
+                    "universe": p.get("universe", "TOP3000"),
+                    "decay": p.get("decay", 15)
+                } 
+                for p in self.population[:elite_count]
+            ])
 
+            # Adaptive reseeding on experience interval
             if (
                 self.experience_memory
                 and config.EXPERIENCE_RESEED_INTERVAL > 0
                 and (gen + 1) % config.EXPERIENCE_RESEED_INTERVAL == 0
             ):
-                adaptive_templates = self._valid_templates(await self._generate_templates(config.EXPERIENCE_RESEED_COUNT))
-                new_generation.extend(
+                adaptive = self._valid_templates(
+                    await self._generate_templates(config.EXPERIENCE_RESEED_COUNT)
+                )
+                new_gen.extend(
                     self._expand_templates(
-                        adaptive_templates,
+                        adaptive,
                         variants_per_template=1,
                         limit=config.EXPERIENCE_RESEED_COUNT,
                     )
                 )
 
-            while len(new_generation) < config.POPULATION_SIZE:
+            # Fill remaining slots via crossover + mutation
+            while len(new_gen) < config.POPULATION_SIZE:
                 parents = self._select_parents()
-                if not parents[0]: break
-                offspring = GeneticEngine.crossover(parents[0], parents[1])
-                offspring = GeneticEngine.mutate(offspring)
-                new_generation.append(offspring)
+                if not parents[0]:
+                    break
+                    
+                p1_expr = parents[0].get("expression", "")
+                p2_expr = parents[1].get("expression", "")
+                offspring_expr = GeneticEngine.crossover(p1_expr, p2_expr)
+                offspring_expr = GeneticEngine.mutate(offspring_expr)
+                
+                offspring_uni = random.choice([parents[0].get("universe", "TOP3000"), parents[1].get("universe", "TOP3000")])
+                offspring_dec = random.choice([parents[0].get("decay", 15), parents[1].get("decay", 15)])
+                
+                if random.random() < 0.15: offspring_uni = random.choice(config.UNIVERSES)
+                if random.random() < 0.15: offspring_dec = random.choice(config.DECAYS)
+                
+                new_gen.append({
+                    "expression": offspring_expr,
+                    "universe": offspring_uni,
+                    "decay": offspring_dec
+                })
 
             self.population = self.population[:config.POPULATION_SIZE]
-            new_generation = new_generation[:config.POPULATION_SIZE]
-            await self._evaluate_population(new_generation)
+            new_gen = new_gen[:config.POPULATION_SIZE]
+            await self._evaluate_population(new_gen)
 
     async def shutdown(self):
         await self.network.close()

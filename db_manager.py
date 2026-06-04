@@ -25,16 +25,19 @@ class DatabaseManager:
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS alpha_population (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                expression TEXT UNIQUE,
-                alpha_id TEXT,
-                generation INTEGER,
-                sharpe REAL,
-                turnover REAL,
-                fitness REAL,
-                ast_depth INTEGER,
-                is_tuned BOOLEAN DEFAULT 0,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                expression  TEXT,
+                universe    TEXT,
+                decay       INTEGER,
+                alpha_id    TEXT,
+                generation  INTEGER,
+                sharpe      REAL,
+                turnover    REAL,
+                fitness     REAL,
+                ast_depth   INTEGER,
+                is_tuned    BOOLEAN DEFAULT 0,
+                timestamp   DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(expression, universe, decay)
             )
             """
         )
@@ -49,21 +52,21 @@ class DatabaseManager:
         )
 
     @staticmethod
-    def _save_alpha(conn, expression, alpha_id, gen, sharpe, turnover, fitness, depth, is_tuned=0):
+    def _save_alpha(conn, expression, universe, decay, alpha_id, gen, sharpe, turnover, fitness, depth, is_tuned=0):
         conn.execute(
             """
             INSERT OR IGNORE INTO alpha_population
-                (expression, alpha_id, generation, sharpe, turnover, fitness, ast_depth, is_tuned)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (expression, universe, decay, alpha_id, generation, sharpe, turnover, fitness, ast_depth, is_tuned)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (expression, alpha_id, gen, sharpe, turnover, fitness, depth, is_tuned),
+            (expression, universe, decay, alpha_id, gen, sharpe, turnover, fitness, depth, is_tuned),
         )
 
     @staticmethod
-    def _get_top_population(conn, limit=150):
+    def _get_top_population(conn, limit: int = 150):
         cursor = conn.execute(
             """
-            SELECT expression, sharpe, turnover, ast_depth
+            SELECT expression, universe, decay, sharpe, turnover, ast_depth
             FROM alpha_population
             WHERE sharpe > 0.5 AND turnover < 0.8
             ORDER BY sharpe DESC LIMIT ?
@@ -74,7 +77,7 @@ class DatabaseManager:
 
     @staticmethod
     def _load_history(conn):
-        cursor = conn.execute("SELECT expression, sharpe FROM alpha_population")
+        cursor = conn.execute("SELECT expression, universe, decay, sharpe FROM alpha_population")
         return cursor.fetchall()
 
     def _sync_connection(self) -> sqlite3.Connection:
@@ -86,9 +89,12 @@ class DatabaseManager:
         with self._sync_lock:
             self._init_schema(self._sync_connection())
 
-    def save_alpha_sync(self, expression, alpha_id, gen, sharpe, turnover, fitness, depth, is_tuned=0):
+    def save_alpha_sync(self, expression, universe, decay, alpha_id, gen, sharpe, turnover, fitness, depth, is_tuned=0):
         with self._sync_lock:
-            self._save_alpha(self._sync_connection(), expression, alpha_id, gen, sharpe, turnover, fitness, depth, is_tuned)
+            self._save_alpha(
+                self._sync_connection(),
+                expression, universe, decay, alpha_id, gen, sharpe, turnover, fitness, depth, is_tuned,
+            )
 
     def get_top_population_sync(self, limit=150):
         with self._sync_lock:
@@ -107,8 +113,8 @@ class DatabaseManager:
     async def init_db(self):
         await asyncio.to_thread(self.init_db_sync)
 
-    async def save_alpha(self, expression, alpha_id, gen, sharpe, turnover, fitness, depth, is_tuned=0):
-        await asyncio.to_thread(self.save_alpha_sync, expression, alpha_id, gen, sharpe, turnover, fitness, depth, is_tuned)
+    async def save_alpha(self, expression, universe, decay, alpha_id, gen, sharpe, turnover, fitness, depth, is_tuned=0):
+        await asyncio.to_thread(self.save_alpha_sync, expression, universe, decay, alpha_id, gen, sharpe, turnover, fitness, depth, is_tuned)
 
     async def get_top_population(self, limit=150):
         return await asyncio.to_thread(self.get_top_population_sync, limit)
@@ -127,8 +133,8 @@ def init_db():
     _DEFAULT_DB.init_db_sync()
 
 
-def save_alpha(expression, alpha_id, gen, sharpe, turnover, fitness, depth, is_tuned=0):
-    _DEFAULT_DB.save_alpha_sync(expression, alpha_id, gen, sharpe, turnover, fitness, depth, is_tuned)
+def save_alpha(expression, universe, decay, alpha_id, gen, sharpe, turnover, fitness, depth, is_tuned=0):
+    _DEFAULT_DB.save_alpha_sync(expression, universe, decay, alpha_id, gen, sharpe, turnover, fitness, depth, is_tuned)
 
 
 def get_top_population(limit=150):
