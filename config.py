@@ -1,13 +1,38 @@
 import json
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
+
+class ConfigurationError(RuntimeError):
+    """Raised when required configuration/metadata is missing or malformed."""
+
+
+# --- Credentials & endpoints -------------------------------------------------
 WQ_BASE_URL = os.getenv("WQ_BASE_URL", "https://api.worldquantbrain.com")
+# A manually-pasted session cookie (fallback). Prefer programmatic auth below.
 WQ_COOKIE = os.getenv("WQ_COOKIE", "")
+# Programmatic authentication (preferred): the network engine can mint fresh
+# cookies automatically instead of waiting for a human to paste one.
+WQ_EMAIL = os.getenv("WQ_EMAIL", "")
+WQ_PASSWORD = os.getenv("WQ_PASSWORD", "")
 
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+LLM_PROVIDER = "gemini"
+# Override via the LLM_MODEL env var if Google renames/retires the model.
+# "gemini-2.5-flash" is valid as of 2025+; older fallbacks: "gemini-2.0-flash",
+# "gemini-1.5-flash".
+LLM_MODEL = os.getenv("LLM_MODEL", "gemini-2.5-flash")
+
+# --- Reproducibility ---------------------------------------------------------
+# Set RANDOM_SEED in the environment to an integer for reproducible runs.
+_seed_env = os.getenv("RANDOM_SEED", "").strip()
+RANDOM_SEED = int(_seed_env) if _seed_env else None
+
+# --- Data field dictionaries -------------------------------------------------
 PRICE_FIELDS = ["close", "vwap", "open", "high", "low"]
 VOLATILITY_FIELDS = ["implied_volatility_call_30", "implied_volatility_put_30", "implied_volatility_call_60", "implied_volatility_put_60", "implied_vol_skew"]
 MACRO_FIELDS = ["mdl53_jc5_5year", "mdl53_jc5_1year", "mdl53_jc5_10year"]
@@ -52,15 +77,25 @@ QUANT_TEMPLATES = [
     "group_neutralize(ts_decay_linear(rank(ts_delta({SENTIMENT}, {LOOKBACK_SHORT})) * ts_zscore(-{VOLATILITY}, {LOOKBACK_LONG}), {LOOKBACK_SHORT}), {NEUTRALIZATION})"
 ]
 
-BROWSER_IMPERSONATE = "chrome110"
+# --- Network behaviour -------------------------------------------------------
+BROWSER_IMPERSONATE = "chrome120"
 MIN_JITTER_SECS = 1.0
 MAX_JITTER_SECS = 3.0
 MAX_CONCURRENT_SIMULATIONS = 5
+# Polling a single simulation: total budget and interval between polls.
+SIMULATION_POLL_TIMEOUT_SECS = 600
+SIMULATION_POLL_INTERVAL_SECS = 2.0
+# Retries for genuine transport/5xx errors. 429 throttling and auth refreshes
+# are handled separately and do NOT consume this budget.
+NETWORK_MAX_ERROR_RETRIES = 5
+# Bounded wait (seconds) for a fresh cookie if programmatic auth is unavailable.
+AUTH_REFRESH_MAX_WAIT_SECS = 600
+# Max consecutive auth refreshes per request before giving up. Guards against an
+# endless 401 -> refresh -> 401 loop when a "successful" login keeps yielding a
+# cookie that the API still rejects.
+AUTH_MAX_REFRESH_ATTEMPTS = 3
 
-LLM_PROVIDER = "gemini"
-LLM_MODEL = "gemini-2.5-flash"
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-
+# --- Genetic algorithm parameters -------------------------------------------
 POPULATION_SIZE = 200
 GENERATIONS = 500
 ELITISM_RATIO = 0.1
@@ -69,24 +104,88 @@ TOURNAMENT_SIZE = 7
 PARSIMONY_COEFFICIENT = 0.002
 EXPERIENCE_RESEED_INTERVAL = 5
 EXPERIENCE_RESEED_COUNT = 4
-DEFAULT_TRACK_RECORD_LENGTH = 1000
 
+# --- Deflation / statistics --------------------------------------------------
+PERIODS_IN_YEAR = 252
+# WorldQuant (like scipy.stats.kurtosis) reports EXCESS kurtosis (normal == 0).
+# The Deflated-Sharpe variance formula needs the full fourth moment (normal ==
+# 3), so oos_deflation converts when this is True. Set False only if your data
+# source reports non-excess kurtosis.
+KURTOSIS_IS_EXCESS = True
+# Conservative default IS track-record length (~1 trading year) when the API
+# does not report one. A SMALL default keeps the Deflated Sharpe honest, since
+# a large track record artificially shrinks the standard error.
+DEFAULT_TRACK_RECORD_LENGTH = 252
+
+# --- Promotion / submission gating ------------------------------------------
+MIN_SHARPE = 1.25
+MAX_TURNOVER = 0.70
+MAX_SELF_CORRELATION = 0.70
+# Structural near-duplicate threshold. This is a CHEAP STRING proxy used only to
+# avoid wasting simulations on near-identical losers; it is NOT a claim of
+# return-decorrelation. Realized self-correlation (via the WorldQuant
+# /correlations/self endpoint) is what actually gates promotion & submission.
+NEAR_DUPLICATE_SIMILARITY = 0.97
+# Hard cap on how many alphas submit_to_worldquant.py will push in one run.
+MAX_SUBMISSIONS_PER_RUN = 10
+
+# --- Simulation settings -----------------------------------------------------
 DEFAULT_INSTRUMENT = "EQUITY"
+DEFAULT_REGION = "USA"
 DEFAULT_DELAY = 1
 DEFAULT_TRUNCATION = 0.08
+# The expression always carries its own group_neutralize(...); platform-side
+# neutralization is therefore disabled to avoid double neutralization. This is
+# the single source of truth used by every payload builder in the project.
+SETTINGS_NEUTRALIZATION = "NONE"
 
 NEUTRALIZATIONS = ["SUBINDUSTRY", "INDUSTRY", "SECTOR", "MARKET"]
 UNIVERSES = ["TOP3000", "TOP1000", "TOP500", "TOP200"]
 DECAYS = [0, 5, 10, 15, 20]
 
 
+def build_settings(universe, decay, neutralization=SETTINGS_NEUTRALIZATION):
+    """Single source of truth for simulation settings (used everywhere)."""
+    return {
+        "instrumentType": DEFAULT_INSTRUMENT,
+        "region": DEFAULT_REGION,
+        "universe": universe,
+        "delay": DEFAULT_DELAY,
+        "decay": decay,
+        "neutralization": neutralization,
+        "truncation": DEFAULT_TRUNCATION,
+        "pasteurization": "ON",
+        "unitHandling": "VERIFY",
+        "nanHandling": "ON",
+        "language": "FASTEXPR",
+        "visualization": False,
+    }
+
+
+def build_simulation_payload(expression, universe, decay):
+    return {
+        "type": "REGULAR",
+        "settings": build_settings(universe, decay),
+        "regular": expression,
+    }
+
+
+# --- Operator metadata (lazy-loaded, fails loudly) --------------------------
 def _load_operator_metadata():
     operators_path = Path(__file__).with_name("operators.json")
+    if not operators_path.exists():
+        raise ConfigurationError(
+            f"operators.json not found at {operators_path}. Run probe_wq.py once "
+            "to download operator metadata before starting the factory."
+        )
     try:
         with operators_path.open("r", encoding="utf-8") as fh:
-            return json.load(fh)
-    except Exception:
-        return []
+            data = json.load(fh)
+    except Exception as exc:
+        raise ConfigurationError(f"Failed to parse operators.json: {exc}") from exc
+    if not isinstance(data, list) or not data:
+        raise ConfigurationError("operators.json is empty or malformed.")
+    return data
 
 
 def _split_signature_args(args_text: str) -> list[str]:
@@ -166,17 +265,49 @@ def _infer_operator_arity(definition: str) -> tuple[int, int | None]:
     return min_args, max_args
 
 
-OPERATOR_METADATA = _load_operator_metadata()
-ALLOWED_OPERATORS = sorted({op["name"] for op in OPERATOR_METADATA if "name" in op})
-OPERATOR_CATEGORIES = {op["name"]: op.get("category") for op in OPERATOR_METADATA if "name" in op}
-OPERATORS_BY_CATEGORY = {}
-OPERATOR_ARITY = {}
+_OPERATOR_CACHE: dict = {}
+_OPERATOR_ATTRS = {
+    "OPERATOR_METADATA",
+    "ALLOWED_OPERATORS",
+    "OPERATOR_CATEGORIES",
+    "OPERATORS_BY_CATEGORY",
+    "OPERATOR_ARITY",
+    "TIME_SERIES_OPERATORS",
+}
 
-for _operator in OPERATOR_METADATA:
-    _name = _operator.get("name")
-    if not _name:
-        continue
-    OPERATORS_BY_CATEGORY.setdefault(_operator.get("category"), []).append(_name)
-    OPERATOR_ARITY[_name] = _infer_operator_arity(_operator.get("definition", ""))
 
-TIME_SERIES_OPERATORS = OPERATORS_BY_CATEGORY.get("Time Series", [])
+def _build_operator_tables() -> dict:
+    metadata = _load_operator_metadata()
+    categories = {}
+    by_category = {}
+    arity = {}
+    for operator in metadata:
+        name = operator.get("name")
+        if not name:
+            continue
+        categories[name] = operator.get("category")
+        by_category.setdefault(operator.get("category"), []).append(name)
+        arity[name] = _infer_operator_arity(operator.get("definition", ""))
+    allowed = sorted({op["name"] for op in metadata if "name" in op})
+    if not allowed:
+        raise ConfigurationError("No operators parsed from operators.json.")
+    return {
+        "OPERATOR_METADATA": metadata,
+        "ALLOWED_OPERATORS": allowed,
+        "OPERATOR_CATEGORIES": categories,
+        "OPERATORS_BY_CATEGORY": by_category,
+        "OPERATOR_ARITY": arity,
+        "TIME_SERIES_OPERATORS": by_category.get("Time Series", []),
+    }
+
+
+def __getattr__(name):
+    # PEP 562: lazily build operator tables on first access so importing config
+    # never crashes (e.g. probe_wq.py must import config BEFORE operators.json
+    # exists). Missing/empty metadata now raises loudly instead of silently
+    # degrading to an empty operator set that fails every validation.
+    if name in _OPERATOR_ATTRS:
+        if not _OPERATOR_CACHE:
+            _OPERATOR_CACHE.update(_build_operator_tables())
+        return _OPERATOR_CACHE[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

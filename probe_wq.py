@@ -1,37 +1,43 @@
 import asyncio
 import json
-from network_engine import NetworkEngine
-import config
+from pathlib import Path
 
-async def probe():
+import config
+from network_engine import NetworkEngine
+
+OPERATORS_PATH = Path(__file__).with_name("operators.json")
+
+
+async def main():
+    """Verify connectivity and download operator metadata.
+
+    config.py loads operators.json lazily, so importing config before this file
+    has run is safe -- this script bootstraps that file. Run it once before the
+    orchestrator (and re-run whenever WorldQuant updates its operator set).
+    """
     net = NetworkEngine()
-    
-    endpoints = [
-        "/data-fields?instrumentType=EQUITY&region=USA&delay=1&universe=TOP3000&limit=50",
-        "/operators",
-        "/simulations"
-    ]
-    
-    for ep in endpoints:
-        print(f"Probing {ep} ...")
-        try:
-            res = await net.request("GET", ep)
-            print(f"SUCCESS {ep}")
-            if "data-fields" in ep:
-                fields = [f["id"] for f in res.get("results", [])]
-                print(f"Sample fields: {fields[:10]}")
-                with open("fields.json", "w") as f:
-                    json.dump(fields, f)
-            elif "operators" in ep:
-                # Assuming operators return list or dict with results
-                ops = [o["name"] if "name" in o else o["id"] for o in res] if isinstance(res, list) else res
-                print(f"Sample operators: {str(ops)[:100]}")
-                with open("operators.json", "w") as f:
-                    json.dump(res, f)
-        except Exception as e:
-            print(f"FAILED {ep}: {e}")
-            
-    await net.close()
+    try:
+        res = await net.request("GET", "/operators")
+        print(f"GET /operators -> HTTP {res['status_code']}")
+        operators = res["json"]
+        if res["status_code"] != 200 or not isinstance(operators, list) or not operators:
+            print("Could not download operators. Check WQ_EMAIL/WQ_PASSWORD or WQ_COOKIE in .env.")
+            return
+        OPERATORS_PATH.write_text(json.dumps(operators, indent=2), encoding="utf-8")
+        print(f"Wrote {len(operators)} operators to {OPERATORS_PATH.name}.")
+
+        # Sanity-probe the data-fields endpoint for the default region (non-fatal).
+        params = (
+            f"?instrumentType={config.DEFAULT_INSTRUMENT}&region={config.DEFAULT_REGION}"
+            f"&delay={config.DEFAULT_DELAY}&universe={config.UNIVERSES[0]}&limit=1"
+        )
+        fields_res = await net.request("GET", f"/data-fields{params}")
+        body = fields_res["json"]
+        count = body.get("count") if isinstance(body, dict) else None
+        print(f"GET /data-fields -> HTTP {fields_res['status_code']} (count={count}).")
+    finally:
+        await net.close()
+
 
 if __name__ == "__main__":
-    asyncio.run(probe())
+    asyncio.run(main())

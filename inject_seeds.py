@@ -1,36 +1,36 @@
-import sqlite3
-import logging
+import config
+from db_manager import DatabaseManager
+from syntax_validator import SyntaxValidator
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
-
-ELITE_SEEDS = [
-    "group_neutralize(ts_mean(implied_volatility_call_30 - implied_volatility_put_30, 3), bucket(rank(cap), range='0,1,0.1'))",
-    "group_neutralize(ts_decay_linear(group_rank(-1 * ts_delta(ts_backfill(mdl53_jc5_5year, 2) - ts_backfill(mdl53_jc5_1year, 2), 5), market) / ts_std_dev(returns, 9), 10), subindustry)"
+# Hand-curated seed expressions. They are stored UNSCORED (sharpe = NULL) so the
+# orchestrator MUST actually simulate them before trusting them -- we never
+# fabricate metrics for a seed. Requires operators.json to exist (run
+# probe_wq.py first) so the validator can check operator names/arity.
+SEED_EXPRESSIONS = [
+    "group_neutralize(rank(ts_zscore(close, 120)), SECTOR)",
+    "group_neutralize(ts_rank(ts_delta(close, 5), 60), INDUSTRY)",
+    "group_neutralize(rank(ts_mean(returns, 20) / ts_std_dev(returns, 60)), SECTOR)",
+    "group_neutralize(rank(ts_delta(est_eps, 22)), SUBINDUSTRY)",
 ]
 
-def inject_seeds():
-    conn = sqlite3.connect("brain_memory.db")
-    cursor = conn.cursor()
-    
-    injected_count = 0
-    
-    for expression in ELITE_SEEDS:
-        try:
-            cursor.execute('''
-                INSERT INTO alpha_population (expression, alpha_id, generation, sharpe, turnover, fitness, ast_depth, is_tuned)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (expression, "MANUAL_SEED", 0, 2.50, 0.10, 5.0, 5, 1))
-            injected_count += 1
-            logger.info(f"Injected: {expression[:50]}...")
-        except sqlite3.IntegrityError:
-            logger.warning(f"Duplicate, skipping: {expression[:50]}...")
-        except Exception as e:
-            logger.error(f"Injection failed: {e}")
-            
-    conn.commit()
-    conn.close()
-    print(f"\n[+] Injected {injected_count} elite seeds.")
+
+def main():
+    db = DatabaseManager()
+    db.init_db_sync()
+    added = 0
+    try:
+        for expr in SEED_EXPRESSIONS:
+            ok, canonical = SyntaxValidator.parse_and_validate(expr)
+            if not ok:
+                print(f"Skipping invalid seed: {expr}")
+                continue
+            db.insert_seed_sync(canonical, config.UNIVERSES[0], config.DECAYS[0])
+            added += 1
+            print(f"Seeded (unscored): {canonical}")
+    finally:
+        db.close_sync()
+    print(f"Inserted {added} unscored seed(s). Run orchestrator.py to evaluate them.")
+
 
 if __name__ == "__main__":
-    inject_seeds()
+    main()

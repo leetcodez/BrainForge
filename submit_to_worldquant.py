@@ -1,52 +1,52 @@
-import sqlite3
 import asyncio
-import logging
-from curl_cffi import requests
 
 import config
+from db_manager import DatabaseManager
 from network_engine import NetworkEngine
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
 
-async def submit_to_portfolio():
-    conn = sqlite3.connect("brain_memory.db")
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        SELECT expression, alpha_id FROM alpha_population 
-        WHERE sharpe >= 1.25 AND turnover <= 0.70 AND alpha_id IS NOT NULL AND alpha_id != '' AND alpha_id != 'MANUAL_SEED'
-    ''')
-    winning_alphas = cursor.fetchall()
-    conn.close()
+async def submit():
+    """Submit the best qualifying alphas to WorldQuant.
 
-    if not winning_alphas:
-        logger.info("No qualifying alphas found.")
+    Candidates are gated at the SQL level on the same criteria the orchestrator
+    used to promote them: realized IS Sharpe >= MIN_SHARPE, turnover <=
+    MAX_TURNOVER, and stored realized self-correlation <= MAX_SELF_CORRELATION.
+    Ordered by fitness (deflated) so the most robust alphas go first, capped at
+    MAX_SUBMISSIONS_PER_RUN.
+    """
+    db = DatabaseManager()
+    db.init_db_sync()
+    candidates = db.get_submission_candidates_sync(
+        config.MIN_SHARPE, config.MAX_TURNOVER, config.MAX_SELF_CORRELATION
+    )
+    if not candidates:
+        print("No submission candidates meet the gate.")
+        db.close_sync()
         return
 
-    network = NetworkEngine()
-    logger.info(f"Found {len(winning_alphas)} candidates for submission.")
-
-    for expression, alpha_id in winning_alphas:
-        logger.info(f"Submitting Alpha [{alpha_id}]: {expression}")
-        
-        try:
-            response = await network.request("POST", f"/alphas/{alpha_id}/submit")
-            
-            if "SELF_CORRELATION" in str(response):
-                logger.warning(f"❌ Rejected: High Auto-Correlation [{alpha_id}]")
-            elif response.get("status") == "ERROR":
-                logger.warning(f"❌ Submission Failed [{alpha_id}]: {response}")
+    net = NetworkEngine()
+    submitted = 0
+    try:
+        for expr, alpha_id, sharpe, turnover, fitness, max_corr in candidates:
+            if submitted >= config.MAX_SUBMISSIONS_PER_RUN:
+                print(f"Reached submission cap ({config.MAX_SUBMISSIONS_PER_RUN}).")
+                break
+            if not alpha_id or alpha_id == "MANUAL_SEED":
+                continue
+            res = await net.request("POST", f"/alphas/{alpha_id}/submit")
+            if res["status_code"] in (200, 201):
+                submitted += 1
+                corr_txt = f"{max_corr:.3f}" if max_corr is not None else "n/a"
+                print(f"Submitted {alpha_id} | sharpe={sharpe:.3f} turnover={turnover:.3f} "
+                      f"fitness={fitness:.4f} self_corr={corr_txt}")
             else:
-                logger.info(f"✅ Successfully submitted: [{alpha_id}]")
-                
-        except Exception as e:
-            if "SELF_CORRELATION" in str(e):
-                logger.warning(f"❌ Rejected: High Auto-Correlation [{alpha_id}]")
-            else:
-                logger.error(f"Submission failed [{alpha_id}]: {e}")
+                print(f"Submit failed for {alpha_id}: HTTP {res['status_code']} -> {res['json']}")
+    finally:
+        await net.close()
+        db.close_sync()
+    print(f"Done. Submitted {submitted} alpha(s).")
 
-    await network.close()
 
 if __name__ == "__main__":
-    asyncio.run(submit_to_portfolio())
+    asyncio.run(submit())
+    

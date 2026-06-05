@@ -1,43 +1,69 @@
-import optuna
 import asyncio
 import logging
-import nest_asyncio
 
-nest_asyncio.apply()
+import optuna
 
-optuna.logging.set_verbosity(optuna.logging.WARNING)
+import config
+from orchestrator import AlphaFactory
+from syntax_validator import SyntaxValidator
 
-class AlphaTuner:
-    def __init__(self, base_expression, simulate_func):
-        self.base_expression = base_expression
-        self.simulate_func = simulate_func
-        
-    def objective(self, trial):
-        d1 = trial.suggest_int("d1", 2, 60)
-        d2 = trial.suggest_int("d2", 5, 120)
-        
-        candidate_expr = self.base_expression.replace("{d1}", str(d1)).replace("{d2}", str(d2))
-        
-        loop = asyncio.get_event_loop()
-        sharpe, turnover, alpha_id = loop.run_until_complete(self.simulate_func(candidate_expr))
-        
-        trial.set_user_attr("alpha_id", alpha_id)
-        
-        if turnover > 0.70:
-            return -1.0 
-            
-        return sharpe
+logger = logging.getLogger(__name__)
 
-    def run_tuning(self, n_trials=15):
-        print(f"[*] Commencing Bayesian Tuning on base structure...")
-        study = optuna.create_study(direction="maximize")
-        study.optimize(self.objective, n_trials=n_trials)
-        
-        best_params = study.best_params
-        best_sharpe = study.best_value
-        best_alpha_id = study.best_trial.user_attrs.get("alpha_id", "")
-        
-        optimal_expr = self.base_expression.replace("{d1}", str(best_params["d1"])).replace("{d2}", str(best_params["d2"]))
-        
-        print(f"[+] Tuning Complete! Best Sharpe: {best_sharpe} using {best_params}")
-        return optimal_expr, best_sharpe, best_params, best_alpha_id
+# Standalone hyperparameter tuner. This is NOT part of the genetic loop -- run it
+# manually to refine a single promising template. It reuses the orchestrator's
+# exact simulation path (AlphaFactory._simulate_alpha) so tuned scores are
+# directly comparable to a normal factory run, and benefits from the same
+# result cache / rate limiting / auth handling.
+
+BASE_TEMPLATE = (
+    "group_neutralize(rank(ts_zscore({PRICE}, {LOOKBACK_LONG}) * "
+    "ts_delta({PRICE}, {LOOKBACK_SHORT})), {NEUTRALIZATION})"
+)
+
+
+def _build_expression(trial) -> str:
+    price = trial.suggest_categorical("price", config.PRICE_FIELDS)
+    lookback_short = trial.suggest_int("lookback_short", 5, 30)
+    lookback_long = trial.suggest_int("lookback_long", 40, 252)
+    neutralization = trial.suggest_categorical("neutralization", config.NEUTRALIZATIONS)
+    return (
+        BASE_TEMPLATE
+        .replace("{PRICE}", price)
+        .replace("{LOOKBACK_LONG}", str(lookback_long))
+        .replace("{LOOKBACK_SHORT}", str(lookback_short))
+        .replace("{NEUTRALIZATION}", neutralization)
+    )
+
+
+async def _run(n_trials: int):
+    factory = AlphaFactory()
+    await factory.initialize()
+    study = optuna.create_study(direction="maximize")
+    try:
+        for _ in range(n_trials):
+            trial = study.ask()
+            raw = _build_expression(trial)
+            universe = trial.suggest_categorical("universe", config.UNIVERSES)
+            decay = trial.suggest_categorical("decay", config.DECAYS)
+            ok, expression = SyntaxValidator.parse_and_validate(raw)
+            if not ok:
+                study.tell(trial, float("-inf"))
+                continue
+            result = await factory._simulate_alpha(expression, universe, decay)
+            score = result.sharpe if result.valid else float("-inf")
+            study.tell(trial, score)
+            logger.info(f"trial sharpe={score:.3f} expr={expression}")
+        print("Best params:", study.best_params)
+        print("Best sharpe:", study.best_value)
+    finally:
+        await factory.shutdown()
+
+
+def main():
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    asyncio.run(_run(n_trials=30))
+
+
+if __name__ == "__main__":
+    main()

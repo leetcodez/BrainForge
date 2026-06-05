@@ -1,130 +1,92 @@
-from curl_cffi import requests
-import time
+"""Standalone smoke test: take a seed template, hot-swap {FIELD}, and simulate.
+
+This is the SECURE replacement for the original scratch file. The old version
+hard-coded a personal WorldQuant session token (a leaked secret) and duplicated
+the auth / polling / simulation logic that now lives in network_engine.py and
+config.py. This rewrite keeps the original behavior -- a quick batch test of one
+template across several data fields -- but:
+  * authenticates via .env (WQ_EMAIL/WQ_PASSWORD or WQ_COOKIE), never a token in code
+  * reuses NetworkEngine (rate limiting, auth refresh, structured responses)
+  * reuses config.build_simulation_payload so settings match the real pipeline
+  * validates each mutated expression before spending a simulation
+
+For a single ad-hoc expression use test_alpha.py; for the full search run
+orchestrator.py. This file is just a fast manual sanity check.
+"""
+
+import asyncio
 import random
 
-# --- 1. CONFIGURATION & AUTH ---
-BROWSER_COOKIE = "cookieyes-consent=consentid:MnNBbnljSThGUWJQRkFSaE5SNXd1WmdJZXpTY1c0RG4,consent:yes,action:yes,necessary:yes,functional:yes,analytics:yes,performance:yes,advertisement:yes,other:yes; __zlcmid=1XjoXQxrdKEmm6w; t=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJKbkdGdERhZ2tDQ2RveTE4SVZJMkZUMUV4eUdHdDVmcyIsImV4cCI6MTc4MDMwNzgwMSwiYW1yIjpbInB3ZCIsImZhY2UiXX0.FAecRUqtjY5zVevTJs6KlvfktSnjFejAFpvrobx2tMA"
+import config
+from network_engine import NetworkEngine
+from syntax_validator import SyntaxValidator
 
-session = requests.Session(impersonate="chrome120")
-session.headers.update({
-    "Cookie": BROWSER_COOKIE,
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Content-Type": "application/json",
-    "Accept": "application/json"
-})
-
-# --- 2. LOCAL DATA DICTIONARY ---
-# A mix of price, volume, and fundamental metrics to hot-swap into the LLM template
-DATA_FIELDS = [
-    "volume",
-    "close",
-    "returns",
-    "vwap",
-    "adv20",               # 20-day average daily volume
-    "fra_sales",           # Fundamental: Sales
-    "fra_ebitda",          # Fundamental: EBITDA
-    "fra_net_income"       # Fundamental: Net Income
-]
-
-# --- 3. CORE SIMULATION FUNCTIONS ---
-def run_simulation(expression):
-    url = "https://api.worldquantbrain.com/simulations"
-    
-    payload = {
-        "type": "REGULAR",
-        "settings": {
-            "instrumentType": "EQUITY",
-            "region": "USA",
-            "universe": "TOP3000",
-            "delay": 1,
-            "decay": 0,
-            "neutralization": "SUBINDUSTRY", 
-            "truncation": 0.08, 
-            "pasteurization": "ON",
-            "unitHandling": "VERIFY",
-            "nanHandling": "OFF",
-            "language": "FASTEXPR",
-            "visualization": False
-        },
-        "regular": expression
-    }
-
-    response = session.post(url, json=payload)
-    
-    if response.status_code == 201:
-        return response.headers.get("Location")
-    elif response.status_code == 401:
-        print("❌ Authentication failed. Cookie expired.")
-        return None
-    else:
-        print(f"❌ Simulation rejected: {response.status_code} - {response.text}")
-        return None
-
-def poll_results(sim_location):
-    while True:
-        response = session.get(sim_location)
-        
-        if response.status_code == 429:
-            backoff = int(response.headers.get("Retry-After", 15))
-            print(f"⚠️ RATE LIMIT! Backing off for {backoff}s...")
-            time.sleep(backoff)
-            continue
-            
-        data = response.json()
-        status = data.get("status")
-        
-        if status == "COMPLETE":
-            alpha_id = data.get("alpha")
-            alpha_response = session.get(f"https://api.worldquantbrain.com/alphas/{alpha_id}")
-            
-            if alpha_response.status_code == 200:
-                is_metrics = alpha_response.json().get("is", {})
-                sharpe = is_metrics.get("sharpe", 0)
-                turnover = is_metrics.get("turnover", 0)
-                
-                print(f"   | Sharpe: {sharpe} | Turnover: {turnover * 100:.2f}%")
-                if sharpe >= 1.25 and turnover <= 0.70:
-                    print("   🌟 WINNER: Metrics passed!")
-                else:
-                    print("   🗑️ Failed minimum metrics.")
-            break
-        elif status == "ERROR":
-            print(f"   ❌ Error: {data.get('error')}")
-            break
-        else:
-            jitter_delay = max(3.0, abs(random.gauss(5.5, 1.2))) 
-            time.sleep(jitter_delay)
-
-# --- 4. THE TEMPLATE INJECTOR ---
-def execute_mutation_batch(template_expression, max_tests=3):
-    """Takes a template string, swaps {FIELD} with real data, and simulates."""
-    print(f"\n🧬 INITIATING BATCH. Seed Template: {template_expression}")
-    
-    # Grab a random sample from our dictionary to test
-    test_batch = random.sample(DATA_FIELDS, min(max_tests, len(DATA_FIELDS)))
-    
-    for i, field in enumerate(test_batch):
-        # 1. Hot-swap the placeholder with the actual data token
-        mutated_alpha = template_expression.replace("{FIELD}", field)
-        print(f"\n🧪 Test {i+1}/{max_tests} -> Executing: {mutated_alpha}")
-        
-        # 2. Run the simulation
-        queue_url = run_simulation(mutated_alpha)
-        if queue_url:
-            poll_results(queue_url)
-            
-        # 3. Stealth delay between different alpha submissions
-        inter_submission_delay = max(5.0, abs(random.gauss(8.0, 2.5)))
-        print(f"⏸️ Resting {inter_submission_delay:.2f}s before next mutation to evade telemetry...")
-        time.sleep(inter_submission_delay)
+# A seed template with a {FIELD} placeholder, mirroring the original intent.
+# (Imagine the LLM produced this structure.)
+SEED_TEMPLATE = "group_neutralize(rank(-1 * returns) * ts_rank({FIELD}, 10), SECTOR)"
 
 
-# --- 5. MAIN EXECUTION ---
+async def _simulate_once(net, expression):
+    payload = config.build_simulation_payload(expression, config.UNIVERSES[0], config.DECAYS[0])
+    resp = await net.request("POST", "/simulations", json=payload)
+    if resp["status_code"] not in (200, 201):
+        print(f"   rejected: HTTP {resp['status_code']} -> {resp['json']}")
+        return
+
+    poll_url = resp.get("location")
+    body = resp.get("json")
+    if not poll_url and isinstance(body, dict):
+        poll_url = body.get("location") or body.get("url")
+    if not poll_url:
+        print("   accepted but no poll URL returned.")
+        return
+
+    endpoint = poll_url.replace(config.WQ_BASE_URL, "")
+    loop = asyncio.get_event_loop()
+    deadline = loop.time() + config.SIMULATION_POLL_TIMEOUT_SECS
+    while loop.time() < deadline:
+        await asyncio.sleep(config.SIMULATION_POLL_INTERVAL_SECS)
+        poll = await net.request("GET", endpoint)
+        pbody = poll["json"] or {}
+        status = str(pbody.get("status", "")).upper()
+        if status in ("ERROR", "FAIL", "FAILED"):
+            print(f"   error: {pbody.get('message') or pbody}")
+            return
+        if status == "COMPLETE" or pbody.get("alpha"):
+            alpha_id = pbody.get("alpha")
+            detail = await net.request("GET", f"/alphas/{alpha_id}")
+            metrics = (detail["json"] or {}).get("is") or {}
+            sharpe = metrics.get("sharpe", 0) or 0
+            turnover = metrics.get("turnover", 0) or 0
+            verdict = ("WINNER" if sharpe >= config.MIN_SHARPE and turnover <= config.MAX_TURNOVER
+                       else "below threshold")
+            print(f"   sharpe={sharpe:.3f} turnover={turnover * 100:.2f}%  -> {verdict}")
+            return
+    print("   timed out waiting for completion.")
+
+
+async def execute_mutation_batch(template, max_tests=4):
+    """Hot-swap {FIELD} with real data fields and simulate each variant.
+
+    Inter-submission spacing / jitter is handled centrally by NetworkEngine's
+    rate limiter, so this no longer needs its own sleep() calls.
+    """
+    print(f"Seed template: {template}")
+    pool = config.DATA_DICTIONARY
+    fields = random.sample(pool, min(max_tests, len(pool)))
+    net = NetworkEngine()
+    try:
+        for i, field in enumerate(fields, start=1):
+            mutated = template.replace("{FIELD}", field)
+            print(f"\nTest {i}/{len(fields)}: {mutated}")
+            ok, canonical = SyntaxValidator.parse_and_validate(mutated)
+            if not ok:
+                print("   invalid expression; skipping.")
+                continue
+            await _simulate_once(net, canonical)
+    finally:
+        await net.close()
+
+
 if __name__ == "__main__":
-    
-    # Imagine Gemini generated this structure for us. 
-    # It contains the {FIELD} placeholder instead of a hardcoded metric.
-    gemini_generated_seed = "group_neutralize(rank(-1 * returns) * ts_rank({FIELD}, 10), subindustry)"
-    
-    # Run a batch test on 4 different fundamental/price fields
-    execute_mutation_batch(gemini_generated_seed, max_tests=4)
+    asyncio.run(execute_mutation_batch(SEED_TEMPLATE, max_tests=4))
