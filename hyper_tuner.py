@@ -4,7 +4,7 @@ import logging
 import optuna
 
 import config
-from orchestrator import AlphaFactory
+from orchestrator import AlphaFactory, _ast_depth
 from syntax_validator import SyntaxValidator
 
 logger = logging.getLogger(__name__)
@@ -51,6 +51,16 @@ async def _run(n_trials: int):
                 continue
             result = await factory._simulate_alpha(expression, universe, decay)
             score = result.sharpe if result.valid else float("-inf")
+            if result.valid:
+                # Persist tuned alphas (is_tuned=1) so the work isn't discarded;
+                # is_qualified stays 0 so the tuner never auto-submits.
+                await factory.db.save_alpha(
+                    result.expression, result.universe, result.decay, result.alpha_id,
+                    -1, result.sharpe, result.turnover, score,
+                    _ast_depth(result.expression), result.skew, result.kurtosis,
+                    result.track_record_length, None, is_tuned=1,
+                    returns=result.returns, oos_sharpe=result.oos_sharpe,
+                )
             study.tell(trial, score)
             logger.info(f"trial sharpe={score:.3f} expr={expression}")
         print("Best params:", study.best_params)

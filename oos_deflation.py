@@ -6,6 +6,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 import config
+from syntax_validator import SyntaxValidator
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,18 @@ class OOSDeflationEngine:
         """Expected maximum of `num_trials` i.i.d. per-period Sharpe estimates."""
         if num_trials < 2 or var_trials <= 0:
             return 0.0
+        # Cap the effective trial count (A3). count_trials() grows every
+        # generation, so an uncapped num_trials makes the multiple-testing
+        # benchmark (this expected-max-Sharpe hurdle) creep upward forever and
+        # slowly crush late-run deflated fitness toward 0 -- i.e. alphas get
+        # penalized merely because the engine has been RUNNING longer, not for
+        # being weaker. Capping keeps deflation a stable statistical guard rather
+        # than an ever-tightening ratchet; since the expected max grows only ~as
+        # sqrt(2 ln N), a generous cap barely moves the bar in the normal regime
+        # and only prevents the pathological runaway. <=1 disables the cap.
+        cap = getattr(config, "DEFLATION_MAX_TRIALS", 0)
+        if cap and cap > 1 and num_trials > cap:
+            num_trials = cap
         sigma = math.sqrt(var_trials)
         z1 = ss.norm.ppf(1.0 - 1.0 / num_trials)
         z2 = ss.norm.ppf(1.0 - 1.0 / (num_trials * math.e))
@@ -129,6 +142,58 @@ class OOSDeflationEngine:
             return float(sims.max()) if sims.size else 0.0
         except Exception:
             return 0.0
+
+    @staticmethod
+    def ast_similarity(expression: str, reference_expressions) -> float:
+        """AST-motif Jaccard similarity (max over references) -- Upgrade #4.
+
+        Unlike `structural_similarity` (a char-ngram string proxy), this compares
+        abstracted call-subtree motifs, so it catches structural twins that read
+        differently as text and ignores cosmetic field/window swaps. Used for
+        near-duplicate de-duplication and originality-vs-zoo scoring.
+        """
+        try:
+            return SyntaxValidator.motif_similarity(expression, list(reference_expressions or []))
+        except Exception:
+            return 0.0
+
+    def overfitting_risk_multiplier(self, is_sharpe, oos_sharpe) -> float:
+        """Fitness multiplier in (0, 1] penalizing a wide IS-OOS gap (Upgrade #6).
+
+        Neutral (1.0) when no OOS figure is available. Otherwise the penalty
+        grows with the RELATIVE shortfall of OOS vs IS Sharpe -- the textbook
+        over-fit signature (IS keeps climbing while OOS lags).
+        """
+        if not config.OVERFIT_RISK_ENABLED or oos_sharpe is None:
+            return 1.0
+        try:
+            is_s = float(is_sharpe)
+            oos_s = float(oos_sharpe)
+        except (TypeError, ValueError):
+            return 1.0
+        if not (math.isfinite(is_s) and math.isfinite(oos_s)) or is_s <= 0:
+            return 1.0
+        gap = max(0.0, is_s - oos_s) / is_s   # relative shortfall
+        return float(math.exp(-config.OVERFIT_RISK_K * gap))
+
+    @staticmethod
+    def estimate_pbo(is_oos_pairs) -> float:
+        """Simplified Probability of Backtest Overfitting (CSCV-flavoured).
+
+        Given (is_score, oos_score) pairs, estimate how over-fit the IS winner is
+        by the fraction of trials whose OOS score beats the IS winner's OOS
+        score. High => the in-sample champion is mediocre out-of-sample. This is
+        an APPROXIMATION (true CSCV needs per-period returns we don't retain),
+        logged as a portfolio diagnostic, never used as a hard gate.
+        """
+        pairs = [(i, o) for i, o in (is_oos_pairs or [])
+                 if i is not None and o is not None
+                 and math.isfinite(i) and math.isfinite(o)]
+        if len(pairs) < 4:
+            return 0.0
+        best_is_oos = max(pairs, key=lambda p: p[0])[1]
+        worse = sum(1 for _, o in pairs if o > best_is_oos)
+        return float(worse) / len(pairs)
 
 
 def _self_test():

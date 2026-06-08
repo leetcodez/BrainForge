@@ -12,6 +12,7 @@ _POPULATION_COLUMNS = (
     "expression", "universe", "decay", "sharpe", "turnover",
     "ast_depth", "skew", "kurtosis", "track_record_length",
     "max_correlation", "alpha_id", "fitness",
+    "returns", "oos_sharpe", "is_qualified",
 )
 
 
@@ -54,28 +55,63 @@ class DatabaseManager:
                 kurtosis             REAL,
                 track_record_length  INTEGER,
                 max_correlation      REAL,
+                returns              REAL,
+                oos_sharpe           REAL,
+                is_qualified         INTEGER DEFAULT 0,
+                failed_checks        TEXT,
                 is_tuned             BOOLEAN DEFAULT 0,
                 timestamp            DATETIME DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(expression, universe, decay)
             )
             """
         )
+        # OPTIMIZATION: Add indexes for fast queries
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_qualified ON alpha_population(is_qualified) WHERE is_qualified = 1")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_sharpe ON alpha_population(sharpe DESC)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_fitness ON alpha_population(fitness DESC)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_generation ON alpha_population(generation)")
+        DatabaseManager._migrate_schema(conn)
+
+    @staticmethod
+    def _migrate_schema(conn: sqlite3.Connection):
+        # Idempotently add columns introduced after the original schema so an
+        # existing brain_memory.db keeps working without a manual rebuild.
+        existing = {row[1] for row in conn.execute("PRAGMA table_info(alpha_population)")}
+        migrations = (
+            ("returns", "ALTER TABLE alpha_population ADD COLUMN returns REAL"),
+            ("oos_sharpe", "ALTER TABLE alpha_population ADD COLUMN oos_sharpe REAL"),
+            ("is_qualified", "ALTER TABLE alpha_population ADD COLUMN is_qualified INTEGER DEFAULT 0"),
+            ("failed_checks", "ALTER TABLE alpha_population ADD COLUMN failed_checks TEXT"),
+        )
+        for column, ddl in migrations:
+            if column not in existing:
+                conn.execute(ddl)
 
     # --- low-level (assume lock held / single thread) ------------------------
     @staticmethod
     def _save_alpha(conn, expression, universe, decay, alpha_id, gen, sharpe,
                     turnover, fitness, depth, skew, kurtosis,
-                    track_record_length, max_correlation, is_tuned=0):
-        # Upsert: keep the BETTER result on conflict so a later real simulation
-        # is never silently dropped by an earlier failure/placeholder. NULL
-        # existing sharpe is treated as -inf so the first real score always wins.
+                    track_record_length, max_correlation, is_tuned=0,
+                    returns=0.0, oos_sharpe=None, is_qualified=0,
+                    failed_checks=""):
+        # Upsert: keep the BETTER-OR-EQUAL result on conflict. ">" alone would
+        # drop the batch ENRICHMENT pass in the orchestrator: each simulation is
+        # first saved raw (real sharpe, fitness/is_qualified/max_correlation still
+        # blank) the instant it completes -- so a completed WorldQuant simulation
+        # is durable even if the run is interrupted mid-generation -- and then
+        # re-saved with the SAME sharpe plus the computed fitness/qualification
+        # once the generation's batch finishes. ">=" lets that equal-sharpe
+        # enrichment overwrite while still keeping a later, genuinely better
+        # simulation and never regressing to a failure/placeholder (NULL existing
+        # sharpe is treated as -inf so the first real score always wins).
         conn.execute(
             """
             INSERT INTO alpha_population
                 (expression, universe, decay, alpha_id, generation, sharpe,
                  turnover, fitness, ast_depth, skew, kurtosis,
-                 track_record_length, max_correlation, is_tuned)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 track_record_length, max_correlation, is_tuned,
+                 returns, oos_sharpe, is_qualified, failed_checks)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(expression, universe, decay) DO UPDATE SET
                 alpha_id            = excluded.alpha_id,
                 generation          = excluded.generation,
@@ -88,12 +124,17 @@ class DatabaseManager:
                 track_record_length = excluded.track_record_length,
                 max_correlation     = excluded.max_correlation,
                 is_tuned            = excluded.is_tuned,
+                returns             = excluded.returns,
+                oos_sharpe          = excluded.oos_sharpe,
+                is_qualified        = excluded.is_qualified,
+                failed_checks       = excluded.failed_checks,
                 timestamp           = CURRENT_TIMESTAMP
-            WHERE excluded.sharpe > COALESCE(alpha_population.sharpe, -1e18)
+            WHERE excluded.sharpe >= COALESCE(alpha_population.sharpe, -1e18)
             """,
             (expression, universe, decay, alpha_id, gen, sharpe, turnover,
              fitness, depth, skew, kurtosis, track_record_length,
-             max_correlation, is_tuned),
+             max_correlation, is_tuned, returns, oos_sharpe, is_qualified,
+             failed_checks),
         )
 
     @staticmethod
@@ -145,17 +186,24 @@ class DatabaseManager:
         return int(row[0]) if row else 0
 
     @staticmethod
-    def _get_submission_candidates(conn, min_sharpe, max_turnover, max_correlation):
+    def _get_submission_candidates(conn, min_sharpe, max_turnover, max_correlation,
+                                   min_turnover=0.0):
+        # turnover >= min_turnover enforces WorldQuant's HARD submittable floor
+        # (BRAIN rejects sub-~1% turnover). Belt-and-suspenders alongside the
+        # orchestrator's qualification gate: it also screens out any legacy rows
+        # that were marked qualified before the floor existed.
         cursor = conn.execute(
             """
             SELECT expression, alpha_id, sharpe, turnover, fitness, max_correlation
             FROM alpha_population
-            WHERE sharpe >= ? AND turnover <= ?
+            WHERE is_qualified = 1
+              AND sharpe >= ? AND turnover <= ? AND turnover >= ?
               AND alpha_id IS NOT NULL AND alpha_id != '' AND alpha_id != 'MANUAL_SEED'
               AND (max_correlation IS NULL OR max_correlation <= ?)
+              AND (failed_checks IS NULL OR failed_checks = '')
             ORDER BY fitness DESC
             """,
-            (min_sharpe, max_turnover, max_correlation),
+            (min_sharpe, max_turnover, min_turnover, max_correlation),
         )
         return cursor.fetchall()
 
@@ -186,12 +234,15 @@ class DatabaseManager:
 
     def save_alpha_sync(self, expression, universe, decay, alpha_id, gen, sharpe,
                         turnover, fitness, depth, skew=0.0, kurtosis=3.0,
-                        track_record_length=None, max_correlation=None, is_tuned=0):
+                        track_record_length=None, max_correlation=None, is_tuned=0,
+                        returns=0.0, oos_sharpe=None, is_qualified=0,
+                        failed_checks=""):
         with self._sync_lock:
             self._save_alpha(
                 self._sync_connection(), expression, universe, decay, alpha_id,
                 gen, sharpe, turnover, fitness, depth, skew, kurtosis,
                 track_record_length, max_correlation, is_tuned,
+                returns, oos_sharpe, is_qualified, failed_checks,
             )
 
     def insert_seed_sync(self, expression, universe, decay):
@@ -210,10 +261,12 @@ class DatabaseManager:
         with self._sync_lock:
             return self._count_trials(self._sync_connection())
 
-    def get_submission_candidates_sync(self, min_sharpe, max_turnover, max_correlation):
+    def get_submission_candidates_sync(self, min_sharpe, max_turnover, max_correlation,
+                                       min_turnover=0.0):
         with self._sync_lock:
             return self._get_submission_candidates(
-                self._sync_connection(), min_sharpe, max_turnover, max_correlation
+                self._sync_connection(), min_sharpe, max_turnover, max_correlation,
+                min_turnover,
             )
 
     def get_top_for_review_sync(self, limit=10):
@@ -232,11 +285,14 @@ class DatabaseManager:
 
     async def save_alpha(self, expression, universe, decay, alpha_id, gen, sharpe,
                          turnover, fitness, depth, skew=0.0, kurtosis=3.0,
-                         track_record_length=None, max_correlation=None, is_tuned=0):
+                         track_record_length=None, max_correlation=None, is_tuned=0,
+                         returns=0.0, oos_sharpe=None, is_qualified=0,
+                         failed_checks=""):
         await asyncio.to_thread(
             self.save_alpha_sync, expression, universe, decay, alpha_id, gen,
             sharpe, turnover, fitness, depth, skew, kurtosis,
             track_record_length, max_correlation, is_tuned,
+            returns, oos_sharpe, is_qualified, failed_checks,
         )
 
     async def get_top_population(self, limit=150):
@@ -250,4 +306,3 @@ class DatabaseManager:
 
     async def close(self):
         await asyncio.to_thread(self.close_sync)
-        

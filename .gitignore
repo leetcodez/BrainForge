@@ -24,3 +24,8 @@ brain_memory.db*
 factory.log
 codex_changes.*
 digest.txt
+*.log
+*.csv
+.wq_checkpoint.*
+.vscode/
+Brain/

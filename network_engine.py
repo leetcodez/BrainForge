@@ -1,7 +1,10 @@
 import asyncio
+import base64
+import json
 import logging
 import random
 import time
+from pathlib import Path
 
 from curl_cffi import requests
 from dotenv import dotenv_values
@@ -50,19 +53,122 @@ class AsyncRateLimiter:
 
 
 class NetworkEngine:
-    def __init__(self, cookie: str | None = None):
+    def __init__(self, cookie: str | None = None, on_auth_required=None):
+        # Epoch seconds at which the current cookie expires (None = unknown).
+        self._cookie_expiry = None
         self.cookie = cookie if cookie is not None else self._load_cookie()
         self.session = self._build_session(self.cookie)
         self._rate_limiter = AsyncRateLimiter(config.MIN_JITTER_SECS, config.MAX_JITTER_SECS)
         self._auth_lock = asyncio.Lock()
+        # Invoked ONCE when a forced re-auth needs the human (face-ID). Defaults
+        # to a prominent banner + sentinel file; the factory can override it to
+        # push an alert elsewhere.
+        self.on_auth_required = on_auth_required or self._default_auth_notification
+        self._keepalive_task = None
 
     # --- session / auth ------------------------------------------------------
     @staticmethod
-    def _load_cookie() -> str:
-        # Re-read .env each time so a human can refresh WQ_COOKIE without a
-        # restart; falls back to the value loaded at import.
+    def _read_env_cookie() -> str:
+        """Read WQ_COOKIE fresh from .env (falling back to the import-time config
+        value). dotenv_values re-reads the file on every call, so a human can
+        paste a new cookie without restarting the process."""
         values = dotenv_values()
         return values.get("WQ_COOKIE") or config.WQ_COOKIE or ""
+
+    @staticmethod
+    def _cookie_expiry_from_jwt(cookie: str):
+        """Best-effort decode of the `t=` JWT's `exp` claim -> epoch seconds.
+        Returns None when the token is absent/unparseable so callers degrade
+        gracefully. NOTE: a still-future `exp` does NOT prove the session is
+        live -- the server can invalidate a cookie whose JWT has not expired."""
+        if not cookie:
+            return None
+        token = None
+        for part in cookie.split(";"):
+            part = part.strip()
+            if part.startswith("t="):
+                token = part[2:]
+                break
+        if not token:
+            return None
+        try:
+            segments = token.split(".")
+            if len(segments) < 2:
+                return None
+            payload_b64 = segments[1]
+            payload_b64 += "=" * (-len(payload_b64) % 4)
+            payload = json.loads(base64.urlsafe_b64decode(payload_b64))
+            exp = payload.get("exp")
+            return float(exp) if exp is not None else None
+        except Exception:
+            return None
+
+    def _load_cookie(self) -> str:
+        # Precedence matters. A cookie the human just pasted into .env ALWAYS
+        # wins over the cached session, because the only reason to paste a fresh
+        # one is that the cached cookie died (e.g. server-side invalidation,
+        # which a still-future JWT `exp` does NOT reveal). This prevents a stale
+        # .wq_session.json from permanently shadowing fresh credentials across
+        # restarts.
+        env_cookie = self._read_env_cookie()
+        cached, cached_expiry = self._load_cached_session()
+        if env_cookie and env_cookie != cached:
+            self._cookie_expiry = self._cookie_expiry_from_jwt(env_cookie)
+            return env_cookie
+        # Otherwise reuse the cached session while it is still valid. If the
+        # cache did not record an expiry, derive one from the JWT so it can
+        # actually age out instead of living forever.
+        if cached:
+            expiry = cached_expiry
+            if expiry is None:
+                expiry = self._cookie_expiry_from_jwt(cached)
+            if expiry is None or expiry > time.time():
+                self._cookie_expiry = expiry
+                return cached
+        self._cookie_expiry = self._cookie_expiry_from_jwt(env_cookie)
+        return env_cookie
+
+    @staticmethod
+    def _load_cached_session():
+        """Return (cookie, expiry_epoch) from the on-disk session cache, or
+        (None, None) when absent/unreadable."""
+        path = Path(config.SESSION_CACHE_PATH)
+        if not path.exists():
+            return None, None
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return None, None
+        cookie = data.get("cookie") or None
+        expiry = data.get("expiry")
+        if expiry is not None:
+            try:
+                expiry = float(expiry)
+            except (TypeError, ValueError):
+                expiry = None
+        return cookie, expiry
+
+    @staticmethod
+    def _persist_cached_session(cookie, expiry):
+        try:
+            Path(config.SESSION_CACHE_PATH).write_text(
+                json.dumps({"cookie": cookie, "expiry": expiry}), encoding="utf-8")
+        except Exception as e:
+            logger.warning(f"Could not persist session cache: {e}")
+
+    @staticmethod
+    def _earliest_expiry(cookie_jar):
+        """Earliest expiry epoch across a cookie jar (None if none declare one)."""
+        try:
+            expiries = [c.expires for c in cookie_jar if getattr(c, "expires", None)]
+            return float(min(expiries)) if expiries else None
+        except Exception:
+            return None
+
+    def _cookie_expiring_soon(self) -> bool:
+        if self._cookie_expiry is None:
+            return False
+        return time.time() >= (self._cookie_expiry - config.COOKIE_REFRESH_MARGIN_SECS)
 
     def _build_session(self, cookie: str) -> "requests.AsyncSession":
         headers = {
@@ -77,19 +183,25 @@ class NetworkEngine:
             timeout=60,
         )
 
-    async def _replace_session(self, cookie: str):
+    async def _replace_session(self, cookie: str, expiry=None):
         old = self.session
         self.cookie = cookie
+        self._cookie_expiry = expiry
         self.session = self._build_session(cookie)
+        self._persist_cached_session(cookie, expiry)
+        self._clear_reauth_flag()
         try:
             await old.close()
         except Exception:
             pass
 
-    async def _authenticate(self) -> str | None:
-        """Best-effort programmatic login. Returns a cookie string or None."""
+    async def _authenticate(self):
+        """Best-effort programmatic login. Returns (cookie, expiry_epoch), or
+        (None, None) when unavailable/failed. The face-ID / Persona step cannot
+        be performed here; this only mints a cookie when the platform accepts the
+        non-interactive email/password flow."""
         if not (config.WQ_EMAIL and config.WQ_PASSWORD):
-            return None
+            return None, None
         auth_session = requests.AsyncSession(
             impersonate=config.BROWSER_IMPERSONATE,
             headers={"Accept": "application/json"},
@@ -101,14 +213,15 @@ class NetworkEngine:
                 auth=(config.WQ_EMAIL, config.WQ_PASSWORD),
             )
             cookie = "; ".join(f"{c.name}={c.value}" for c in auth_session.cookies)
+            expiry = self._earliest_expiry(auth_session.cookies)
             if resp.status_code in (200, 201) and cookie:
                 logger.info("Programmatic authentication succeeded.")
-                return cookie
+                return cookie, expiry
             logger.error(f"Programmatic authentication failed: HTTP {resp.status_code}.")
-            return None
+            return None, None
         except Exception as e:
             logger.error(f"Programmatic authentication error: {e}")
-            return None
+            return None, None
         finally:
             try:
                 await auth_session.close()
@@ -116,45 +229,145 @@ class NetworkEngine:
                 pass
 
     async def _refresh_auth(self, failed_cookie: str):
-        """Bounded, non-blocking re-auth. Never loops forever.
+        """Re-authenticate, pausing for a human ONLY when unavoidable.
 
-        Order: (1) programmatic login, (2) reload .env, (3) bounded wait for a
-        human to update .env (also retrying programmatic login). Raises
-        AuthenticationError if nothing works within AUTH_REFRESH_MAX_WAIT_SECS.
+        Order:
+          (1) programmatic (non-interactive) login,
+          (2) a cookie refreshed out-of-band (.env or cached session file),
+          (3) PAUSE + NOTIFY + WAIT for human re-auth (face-ID), then RESUME.
+        Raises AuthenticationError only if the human never re-auths within
+        AUTH_PAUSE_MAX_WAIT_SECS.
         """
         async with self._auth_lock:
             # Another coroutine may have already refreshed while we waited.
             if self.cookie != failed_cookie:
                 return
 
-            new_cookie = await self._authenticate()
+            new_cookie, expiry = await self._authenticate()
             if new_cookie:
-                await self._replace_session(new_cookie)
+                await self._replace_session(new_cookie, expiry)
                 return
 
             env_cookie = self._load_cookie()
             if env_cookie and env_cookie != failed_cookie:
-                logger.info("Loaded a refreshed cookie from .env.")
-                await self._replace_session(env_cookie)
+                logger.info("Loaded a refreshed cookie from .env / session cache.")
+                await self._replace_session(env_cookie, self._cookie_expiry)
                 return
 
-            logger.error(
-                "AUTH EXPIRED. Set WQ_EMAIL/WQ_PASSWORD for auto-login or update "
-                "WQ_COOKIE in .env. Waiting up to %ss...",
-                config.AUTH_REFRESH_MAX_WAIT_SECS,
-            )
-            deadline = time.monotonic() + config.AUTH_REFRESH_MAX_WAIT_SECS
+            # The face-ID / Persona step is human-only. Pause the run, notify,
+            # and poll for a fresh session (auto-login OR an updated cookie) so
+            # the generator RESUMES on its own once you re-auth.
+            self._notify_auth_required()
+            deadline = time.monotonic() + config.AUTH_PAUSE_MAX_WAIT_SECS
             while time.monotonic() < deadline:
                 await asyncio.sleep(5)
                 env_cookie = self._load_cookie()
                 if env_cookie and env_cookie != failed_cookie:
-                    await self._replace_session(env_cookie)
+                    logger.info("Detected a refreshed session; resuming.")
+                    await self._replace_session(env_cookie, self._cookie_expiry)
                     return
-                new_cookie = await self._authenticate()
+                new_cookie, expiry = await self._authenticate()
                 if new_cookie:
-                    await self._replace_session(new_cookie)
+                    logger.info("Re-authenticated programmatically; resuming.")
+                    await self._replace_session(new_cookie, expiry)
                     return
-            raise AuthenticationError("Could not refresh authentication within the time budget.")
+            raise AuthenticationError(
+                "Human re-authentication did not arrive within the pause budget."
+            )
+
+    async def _try_proactive_refresh(self) -> bool:
+        """Silent, NON-interactive refresh used before a known expiry. Never
+        enters the human-pause path, so it can't trigger a false alarm when
+        auto-login is not configured."""
+        async with self._auth_lock:
+            new_cookie, expiry = await self._authenticate()
+            if new_cookie:
+                await self._replace_session(new_cookie, expiry)
+                return True
+            env_cookie = self._load_cookie()
+            if env_cookie and env_cookie != self.cookie:
+                await self._replace_session(env_cookie, self._cookie_expiry)
+                return True
+            return False
+
+    # --- human-reauth notification ------------------------------------------
+    def _notify_auth_required(self):
+        try:
+            self.on_auth_required()
+        except Exception as e:
+            logger.error(f"Auth-required notification hook failed: {e}")
+
+    def _default_auth_notification(self):
+        hours = config.AUTH_PAUSE_MAX_WAIT_SECS // 3600
+        banner = (
+            "\n" + "=" * 72 +
+            "\n  WORLDQUANT SESSION EXPIRED -- HUMAN RE-AUTH REQUIRED (face-ID)."
+            "\n  The run is PAUSED and will RESUME automatically once you:"
+            "\n    1. log in to WorldQuant BRAIN in your browser, then either"
+            "\n    2. paste the fresh cookie into WQ_COOKIE in .env, or"
+            "\n    3. leave WQ_EMAIL/WQ_PASSWORD set for auto-login."
+            f"\n  Waiting up to {hours}h...\n" +
+            "=" * 72
+        )
+        logger.warning(banner)
+        try:
+            Path(config.REAUTH_FLAG_PATH).write_text(str(time.time()), encoding="utf-8")
+        except Exception:
+            pass
+        try:  # audible nudge if a terminal is attached
+            print("\a", end="", flush=True)
+        except Exception:
+            pass
+
+    def _clear_reauth_flag(self):
+        try:
+            flag = Path(config.REAUTH_FLAG_PATH)
+            if flag.exists():
+                flag.unlink()
+        except Exception:
+            pass
+
+    # --- keep-alive heartbeat ------------------------------------------------
+    async def start_keepalive(self):
+        if not config.KEEPALIVE_ENABLED or self._keepalive_task is not None:
+            return
+        self._keepalive_task = asyncio.create_task(self._keepalive_loop())
+
+    async def stop_keepalive(self):
+        if self._keepalive_task is None:
+            return
+        self._keepalive_task.cancel()
+        try:
+            await self._keepalive_task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            pass
+        self._keepalive_task = None
+
+    async def _keepalive_loop(self):
+        """Periodic lightweight authenticated ping. Prevents IDLE-timeout
+        logouts and proactively refreshes shortly before a known cookie expiry.
+        Cannot defeat the hard face-ID limit -- that path is handled by
+        _refresh_auth's pause-and-resume."""
+        while True:
+            try:
+                await asyncio.sleep(config.KEEPALIVE_INTERVAL_SECS)
+                if self._cookie_expiring_soon():
+                    logger.info("Cookie nearing expiry; attempting proactive refresh.")
+                    if not await self._try_proactive_refresh():
+                        logger.warning(
+                            "Proactive refresh unavailable; will pause-and-resume "
+                            "at the next auth challenge.")
+                else:
+                    await self.request("GET", config.KEEPALIVE_ENDPOINT)
+            except asyncio.CancelledError:
+                break
+            except AuthenticationError:
+                logger.error("Keep-alive: re-auth pause budget exhausted; stopping heartbeat.")
+                break
+            except Exception as e:
+                logger.warning(f"Keep-alive ping failed (non-fatal): {e}")
 
     # --- helpers -------------------------------------------------------------
     @staticmethod
@@ -202,6 +415,7 @@ class NetworkEngine:
         url = endpoint if endpoint.startswith("http") else f"{config.WQ_BASE_URL}{endpoint}"
         error_retries = 0
         auth_retries = 0
+        throttle_retries = 0
 
         while True:
             await self._rate_limiter.wait()
@@ -234,9 +448,18 @@ class NetworkEngine:
                 continue
 
             if status == 429:
+                throttle_retries += 1
                 retry_after = self._parse_retry_after(response.headers.get("Retry-After"))
-                backoff = retry_after if retry_after is not None else config.MAX_JITTER_SECS * 2
-                logger.warning(f"Throttled (429) on {url}; backing off {backoff:.1f}s.")
+                if retry_after is not None:
+                    backoff = retry_after
+                else:
+                    # Exponential backoff (capped) while the server keeps
+                    # throttling, instead of poking a flat interval forever.
+                    base = config.MAX_JITTER_SECS * 2
+                    backoff = min(base * (2 ** (throttle_retries - 1)), config.THROTTLE_MAX_BACKOFF_SECS)
+                    backoff += random.uniform(0, config.MAX_JITTER_SECS)
+                logger.warning(f"Throttled (429) on {url}; backing off {backoff:.1f}s "
+                               f"(throttle attempt {throttle_retries}).")
                 await self._rate_limiter.defer(backoff)
                 await asyncio.sleep(backoff)
                 continue
@@ -265,6 +488,7 @@ class NetworkEngine:
             return self._build_result(response)
 
     async def close(self):
+        await self.stop_keepalive()
         try:
             await self.session.close()
         except Exception:
