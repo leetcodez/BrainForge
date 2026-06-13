@@ -3,6 +3,7 @@ import re
 
 import config
 from db_manager import DatabaseManager
+from decorrelation_selector import select_submissions
 from network_engine import NetworkEngine
 from oos_deflation import OOSDeflationEngine
 
@@ -20,17 +21,27 @@ def _data_category(expression):
 
 
 async def _live_failed_checks(net, alpha_id):
-    """Comma-joined names of is.checks BRAIN currently reports as FAIL for an
-    alpha (PENDING submission-time checks are not failures). '' == BRAIN-clean or
-    indeterminate. Fails OPEN on a network/parse error so a transient blip does
-    not silently block an otherwise-qualified submission (the SQL gate already
-    screened it)."""
+    """Names of is.checks BRAIN currently reports as FAIL/ERROR for an alpha.
+
+    Returns:
+      * '' when BRAIN EXPLICITLY reports the alpha is clean (200 + a checks list
+        with no FAIL/ERROR);
+      * a comma-joined string of failed check names when any check fails;
+      * None when the status could NOT be determined (network/parse error,
+        non-200, or no checks payload).
+
+    The submit loop FAILS CLOSED on None: submission is irreversible, so a
+    transient blip must SKIP the alpha (retry on a later run) rather than risk
+    POSTing one whose checks we could not verify. (Breeding may fail open; the
+    submit POST may not.)"""
     try:
         resp = await net.request("GET", f"/alphas/{alpha_id}")
+        if resp.get("status_code") not in (200, 201):
+            return None
         metrics = (resp.get("json") or {}).get("is") or {}
         checks = metrics.get("checks")
         if not isinstance(checks, list):
-            return ""
+            return None
         failed = []
         for c in checks:
             if isinstance(c, dict) and str(c.get("result", "")).upper() in ("FAIL", "ERROR"):
@@ -39,7 +50,7 @@ async def _live_failed_checks(net, alpha_id):
                     failed.append(name)
         return ",".join(dict.fromkeys(failed))
     except Exception:
-        return ""
+        return None
 
 
 def _diversified_order(candidates):
@@ -89,15 +100,19 @@ def _diversified_order(candidates):
     return selected
 
 
-async def submit():
+async def submit(dry_run=False):
     """Submit the best qualifying alphas to WorldQuant.
 
     Candidates are gated at the SQL level on the same criteria the orchestrator
     used to promote them: realized IS Sharpe >= MIN_SHARPE, MIN_TURNOVER <=
     turnover <= MAX_TURNOVER (BRAIN rejects sub-~1% turnover), and stored
     realized self-correlation <= MAX_SELF_CORRELATION.
-    Ordered by fitness (deflated) so the most robust alphas go first, capped at
-    MAX_SUBMISSIONS_PER_RUN.
+
+    When SUBMISSION_USE_PNL_SELECTOR is on and stored daily PnL exists, the
+    submission ORDER/BASKET comes from the PnL-decorrelation selector; otherwise
+    it falls back to the AST-similarity _diversified_order, so this is a strict
+    SUPERSET of the old behaviour and enabling it can never regress. --dry-run
+    prints the full plan and POSTs nothing.
     """
     db = DatabaseManager()
     db.init_db_sync()
@@ -110,10 +125,26 @@ async def submit():
         db.close_sync()
         return
 
+    if getattr(config, "SUBMISSION_USE_PNL_SELECTOR", False):
+        ordered = select_submissions(db=db) or _diversified_order(candidates)
+    else:
+        ordered = _diversified_order(candidates)
+
+    if dry_run:
+        print(f"DRY RUN -- {len(ordered)} alpha(s) would be submitted (cap "
+              f"{config.MAX_SUBMISSIONS_PER_RUN}), in order:")
+        for i, (expr, alpha_id, sharpe, turnover, fitness, max_corr) in enumerate(ordered, 1):
+            corr_txt = f"{max_corr:.3f}" if max_corr is not None else "n/a"
+            print(f"{i:2d}. {alpha_id} sharpe={sharpe:.3f} turnover={turnover:.3f} "
+                  f"fitness={fitness:.4f} stored_self_corr={corr_txt}")
+            print(f"      {expr}")
+        db.close_sync()
+        return
+
     net = NetworkEngine()
     submitted = 0
     try:
-        for expr, alpha_id, sharpe, turnover, fitness, max_corr in _diversified_order(candidates):
+        for expr, alpha_id, sharpe, turnover, fitness, max_corr in ordered:
             if submitted >= config.MAX_SUBMISSIONS_PER_RUN:
                 print(f"Reached submission cap ({config.MAX_SUBMISSIONS_PER_RUN}).")
                 break
@@ -125,6 +156,10 @@ async def submit():
             # existed (their stored failed_checks is NULL) and anything BRAIN has
             # re-evaluated since. Belt-and-suspenders over the SQL screen.
             failed = await _live_failed_checks(net, alpha_id)
+            if failed is None:
+                print(f"Skipping {alpha_id}: could not verify BRAIN is.checks "
+                      f"(failing CLOSED; will retry on a later run).")
+                continue
             if failed:
                 print(f"Skipping {alpha_id}: BRAIN checks still failing -> {failed}")
                 continue
@@ -143,4 +178,8 @@ async def submit():
 
 
 if __name__ == "__main__":
-    asyncio.run(submit())
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--dry-run", action="store_true")
+    args = ap.parse_args()
+    asyncio.run(submit(dry_run=args.dry_run))

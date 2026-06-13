@@ -59,6 +59,9 @@ class DatabaseManager:
                 oos_sharpe           REAL,
                 is_qualified         INTEGER DEFAULT 0,
                 failed_checks        TEXT,
+                parent_id            TEXT,
+                mutation_type        TEXT,
+                origin               TEXT,
                 is_tuned             BOOLEAN DEFAULT 0,
                 timestamp            DATETIME DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(expression, universe, decay)
@@ -70,6 +73,18 @@ class DatabaseManager:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_sharpe ON alpha_population(sharpe DESC)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_fitness ON alpha_population(fitness DESC)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_generation ON alpha_population(generation)")
+        # --- daily PnL store for the decorrelation selector (additive) -------
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS alpha_pnl (
+                alpha_id  TEXT NOT NULL,
+                date      TEXT NOT NULL,
+                pnl       REAL,
+                PRIMARY KEY (alpha_id, date)
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_pnl_alpha ON alpha_pnl(alpha_id)")
         DatabaseManager._migrate_schema(conn)
 
     @staticmethod
@@ -82,6 +97,13 @@ class DatabaseManager:
             ("oos_sharpe", "ALTER TABLE alpha_population ADD COLUMN oos_sharpe REAL"),
             ("is_qualified", "ALTER TABLE alpha_population ADD COLUMN is_qualified INTEGER DEFAULT 0"),
             ("failed_checks", "ALTER TABLE alpha_population ADD COLUMN failed_checks TEXT"),
+            # Lineage instrumentation (PASSIVE: populated by the orchestrator at
+            # offspring creation; no effect on selection/mutation). Enables the
+            # Module 4 lineage/mutation/reseed diagnostics on FUTURE runs;
+            # existing DBs migrate to NULLs and stay fully usable.
+            ("parent_id", "ALTER TABLE alpha_population ADD COLUMN parent_id TEXT"),
+            ("mutation_type", "ALTER TABLE alpha_population ADD COLUMN mutation_type TEXT"),
+            ("origin", "ALTER TABLE alpha_population ADD COLUMN origin TEXT"),
         )
         for column, ddl in migrations:
             if column not in existing:
@@ -93,25 +115,31 @@ class DatabaseManager:
                     turnover, fitness, depth, skew, kurtosis,
                     track_record_length, max_correlation, is_tuned=0,
                     returns=0.0, oos_sharpe=None, is_qualified=0,
-                    failed_checks=""):
+                    failed_checks="", parent_id=None, mutation_type=None,
+                    origin=None):
         # Upsert: keep the BETTER-OR-EQUAL result on conflict. ">" alone would
         # drop the batch ENRICHMENT pass in the orchestrator: each simulation is
         # first saved raw (real sharpe, fitness/is_qualified/max_correlation still
         # blank) the instant it completes -- so a completed WorldQuant simulation
         # is durable even if the run is interrupted mid-generation -- and then
         # re-saved with the SAME sharpe plus the computed fitness/qualification
-        # once the generation's batch finishes. ">=" lets that equal-sharpe
-        # enrichment overwrite while still keeping a later, genuinely better
-        # simulation and never regressing to a failure/placeholder (NULL existing
-        # sharpe is treated as -inf so the first real score always wins).
+        # once the generation's batch finishes. At EQUAL sharpe the overwrite is
+        # now allowed ONLY when the incoming row carries a computed fitness
+        # (fitness IS NOT NULL) -- i.e. it is that enrichment pass -- so a later
+        # DUPLICATE RAW save (fitness NULL, is_qualified 0, max_correlation NULL)
+        # of the same (expression, universe, decay) can no longer clobber an
+        # already-enriched row back to unqualified/unchecked. A genuinely better,
+        # higher-sharpe simulation still always wins (NULL existing sharpe is
+        # treated as -inf so the first real score always wins).
         conn.execute(
             """
             INSERT INTO alpha_population
                 (expression, universe, decay, alpha_id, generation, sharpe,
                  turnover, fitness, ast_depth, skew, kurtosis,
                  track_record_length, max_correlation, is_tuned,
-                 returns, oos_sharpe, is_qualified, failed_checks)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 returns, oos_sharpe, is_qualified, failed_checks,
+                 parent_id, mutation_type, origin)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(expression, universe, decay) DO UPDATE SET
                 alpha_id            = excluded.alpha_id,
                 generation          = excluded.generation,
@@ -128,13 +156,21 @@ class DatabaseManager:
                 oos_sharpe          = excluded.oos_sharpe,
                 is_qualified        = excluded.is_qualified,
                 failed_checks       = excluded.failed_checks,
+                -- Lineage is WRITE-ONCE: COALESCE(existing, excluded) so a later
+                -- raw/enrichment re-save carrying NULL lineage never erases the
+                -- tags written when the row was first created.
+                parent_id           = COALESCE(alpha_population.parent_id, excluded.parent_id),
+                mutation_type       = COALESCE(alpha_population.mutation_type, excluded.mutation_type),
+                origin              = COALESCE(alpha_population.origin, excluded.origin),
                 timestamp           = CURRENT_TIMESTAMP
-            WHERE excluded.sharpe >= COALESCE(alpha_population.sharpe, -1e18)
+            WHERE excluded.sharpe > COALESCE(alpha_population.sharpe, -1e18)
+               OR (excluded.sharpe = alpha_population.sharpe
+                   AND excluded.fitness IS NOT NULL)
             """,
             (expression, universe, decay, alpha_id, gen, sharpe, turnover,
              fitness, depth, skew, kurtosis, track_record_length,
              max_correlation, is_tuned, returns, oos_sharpe, is_qualified,
-             failed_checks),
+             failed_checks, parent_id, mutation_type, origin),
         )
 
     @staticmethod
@@ -178,6 +214,24 @@ class DatabaseManager:
         return cursor.fetchall()
 
     @staticmethod
+    def _load_history_chrono(conn):
+        # Same columns as _load_history but ORDER BY the AUTOINCREMENT id -- a
+        # stable insertion-order proxy for chronology (id never changes on the
+        # ON CONFLICT upsert, unlike timestamp, which is bumped on every
+        # enrichment). Used by the surrogate evaluation so its train/test split
+        # is an honest FORWARD split rather than arbitrary engine order.
+        cursor = conn.execute(
+            """
+            SELECT expression, universe, decay, sharpe, turnover, skew, kurtosis,
+                   track_record_length, alpha_id
+            FROM alpha_population
+            WHERE sharpe IS NOT NULL
+            ORDER BY id ASC
+            """
+        )
+        return cursor.fetchall()
+
+    @staticmethod
     def _count_trials(conn) -> int:
         cursor = conn.execute(
             "SELECT COUNT(*) FROM alpha_population WHERE sharpe IS NOT NULL"
@@ -191,7 +245,13 @@ class DatabaseManager:
         # turnover >= min_turnover enforces WorldQuant's HARD submittable floor
         # (BRAIN rejects sub-~1% turnover). Belt-and-suspenders alongside the
         # orchestrator's qualification gate: it also screens out any legacy rows
-        # that were marked qualified before the floor existed.
+        # that were marked qualified before the floor existed. It ALSO now
+        # requires max_correlation to be NON-NULL: an alpha whose realized
+        # self-correlation was never measured (a skipped/errored /correlations/
+        # self call) must NOT be submittable -- an unmeasured correlation is not
+        # a passing correlation. (failed_checks stays NULL-permissive here
+        # because submit_to_worldquant re-checks is.checks live, failing closed,
+        # before the POST.)
         cursor = conn.execute(
             """
             SELECT expression, alpha_id, sharpe, turnover, fitness, max_correlation
@@ -199,13 +259,39 @@ class DatabaseManager:
             WHERE is_qualified = 1
               AND sharpe >= ? AND turnover <= ? AND turnover >= ?
               AND alpha_id IS NOT NULL AND alpha_id != '' AND alpha_id != 'MANUAL_SEED'
-              AND (max_correlation IS NULL OR max_correlation <= ?)
+              AND max_correlation IS NOT NULL AND max_correlation <= ?
               AND (failed_checks IS NULL OR failed_checks = '')
             ORDER BY fitness DESC
             """,
             (min_sharpe, max_turnover, min_turnover, max_correlation),
         )
         return cursor.fetchall()
+
+    @staticmethod
+    def _save_pnl(conn, alpha_id, series):
+        # series: iterable of (date_str, cumulative_pnl_float). Idempotent upsert
+        # so re-running the backfill never duplicates or corrupts a series.
+        conn.executemany(
+            """
+            INSERT INTO alpha_pnl (alpha_id, date, pnl)
+            VALUES (?, ?, ?)
+            ON CONFLICT(alpha_id, date) DO UPDATE SET pnl = excluded.pnl
+            """,
+            [(alpha_id, d, p) for d, p in series],
+        )
+
+    @staticmethod
+    def _load_pnl(conn, alpha_id):
+        cursor = conn.execute(
+            "SELECT date, pnl FROM alpha_pnl WHERE alpha_id = ? ORDER BY date ASC",
+            (alpha_id,),
+        )
+        return cursor.fetchall()
+
+    @staticmethod
+    def _alpha_ids_with_pnl(conn):
+        cursor = conn.execute("SELECT DISTINCT alpha_id FROM alpha_pnl")
+        return [row[0] for row in cursor.fetchall()]
 
     @staticmethod
     def _get_top_for_review(conn, limit: int = 10):
@@ -233,16 +319,18 @@ class DatabaseManager:
             self._init_schema(self._sync_connection())
 
     def save_alpha_sync(self, expression, universe, decay, alpha_id, gen, sharpe,
-                        turnover, fitness, depth, skew=0.0, kurtosis=3.0,
+                        turnover, fitness, depth, skew=0.0, kurtosis=0.0,
                         track_record_length=None, max_correlation=None, is_tuned=0,
                         returns=0.0, oos_sharpe=None, is_qualified=0,
-                        failed_checks=""):
+                        failed_checks="", parent_id=None, mutation_type=None,
+                        origin=None):
         with self._sync_lock:
             self._save_alpha(
                 self._sync_connection(), expression, universe, decay, alpha_id,
                 gen, sharpe, turnover, fitness, depth, skew, kurtosis,
                 track_record_length, max_correlation, is_tuned,
                 returns, oos_sharpe, is_qualified, failed_checks,
+                parent_id, mutation_type, origin,
             )
 
     def insert_seed_sync(self, expression, universe, decay):
@@ -257,6 +345,10 @@ class DatabaseManager:
         with self._sync_lock:
             return self._load_history(self._sync_connection())
 
+    def load_history_chrono_sync(self):
+        with self._sync_lock:
+            return self._load_history_chrono(self._sync_connection())
+
     def count_trials_sync(self):
         with self._sync_lock:
             return self._count_trials(self._sync_connection())
@@ -268,6 +360,18 @@ class DatabaseManager:
                 self._sync_connection(), min_sharpe, max_turnover, max_correlation,
                 min_turnover,
             )
+
+    def save_pnl_sync(self, alpha_id, series):
+        with self._sync_lock:
+            self._save_pnl(self._sync_connection(), alpha_id, series)
+
+    def load_pnl_sync(self, alpha_id):
+        with self._sync_lock:
+            return self._load_pnl(self._sync_connection(), alpha_id)
+
+    def alpha_ids_with_pnl_sync(self):
+        with self._sync_lock:
+            return self._alpha_ids_with_pnl(self._sync_connection())
 
     def get_top_for_review_sync(self, limit=10):
         with self._sync_lock:
@@ -284,15 +388,17 @@ class DatabaseManager:
         await asyncio.to_thread(self.init_db_sync)
 
     async def save_alpha(self, expression, universe, decay, alpha_id, gen, sharpe,
-                         turnover, fitness, depth, skew=0.0, kurtosis=3.0,
+                         turnover, fitness, depth, skew=0.0, kurtosis=0.0,
                          track_record_length=None, max_correlation=None, is_tuned=0,
                          returns=0.0, oos_sharpe=None, is_qualified=0,
-                         failed_checks=""):
+                         failed_checks="", parent_id=None, mutation_type=None,
+                         origin=None):
         await asyncio.to_thread(
             self.save_alpha_sync, expression, universe, decay, alpha_id, gen,
             sharpe, turnover, fitness, depth, skew, kurtosis,
             track_record_length, max_correlation, is_tuned,
             returns, oos_sharpe, is_qualified, failed_checks,
+            parent_id, mutation_type, origin,
         )
 
     async def get_top_population(self, limit=150):

@@ -762,6 +762,19 @@ AUTH_REFRESH_MAX_WAIT_SECS = 600
 # endless 401 -> refresh -> 401 loop when a "successful" login keeps yielding a
 # cookie that the API still rejects.
 AUTH_MAX_REFRESH_ATTEMPTS = 3
+# Programmatic-login rate limiting (runaway sign-in guard). WorldQuant locks an
+# account after a burst of sign-ins (observed ~25/day). Previously _authenticate()
+# had NO cooldown, so a session that logs in "successfully" but is still rejected
+# by the API (the Persona / face-ID step-up case) drove an unbounded
+# login -> still-401 -> login loop that tripped the lockout overnight. These knobs
+# HARD-bound programmatic logins: a minimum spacing between attempts and a rolling
+# cap kept well under the platform lockout. When the cap is hit the engine trips a
+# circuit breaker and falls back to the human pause-and-resume (paste a fresh
+# WQ_COOKIE) path instead of hammering /authentication. Set
+# WQ_AUTH_MAX_LOGINS_PER_WINDOW=0 to disable programmatic login entirely (cookie-only).
+AUTH_MIN_LOGIN_INTERVAL_SECS = float(os.getenv("WQ_AUTH_MIN_LOGIN_INTERVAL_SECS", "900"))
+AUTH_LOGIN_WINDOW_SECS = float(os.getenv("WQ_AUTH_LOGIN_WINDOW_SECS", str(24 * 3600)))
+AUTH_MAX_LOGINS_PER_WINDOW = int(os.getenv("WQ_AUTH_MAX_LOGINS_PER_WINDOW", "10"))
 # Self-correlation check retries (A2). The realized self-correlation gate FAILS
 # CLOSED: if every attempt to fetch /correlations/self errors out, the alpha is
 # treated as fully correlated (max-corr 1.0) and withheld from promotion rather
@@ -802,8 +815,14 @@ ELITISM_RATIO = 0.1
 MUTATION_RATE = 0.45
 TOURNAMENT_SIZE = 7
 PARSIMONY_COEFFICIENT = 0.002
-EXPERIENCE_RESEED_INTERVAL = 5
-EXPERIENCE_RESEED_COUNT = 4
+EXPERIENCE_RESEED_INTERVAL = int(os.getenv("WQ_EXPERIENCE_RESEED_INTERVAL", "5"))
+# Bumped 4 -> 16: each periodic reseed injects a larger batch of FRESH
+# breadth-first seeds (drawn across the whole field universe via the experience-
+# memory-steered grammar engine), so diversity is continually RE-injected to
+# counter selection collapsing the population onto one field family between
+# reseeds. Still a small fraction of POPULATION_SIZE, so the extra per-reseed
+# simulation cost is negligible.
+EXPERIENCE_RESEED_COUNT = int(os.getenv("WQ_EXPERIENCE_RESEED_COUNT", "16"))
 # Turnover-control mutation: let the genetic engine wrap a signal in a
 # trade_when / keep gate (the WorldQuant turnover levers) so high-turnover
 # alphas can be throttled toward the fitness bar. Only operators present in the
@@ -956,6 +975,38 @@ NEAR_DUPLICATE_SIMILARITY = 0.97
 # Hard cap on how many alphas submit_to_worldquant.py will push in one run.
 MAX_SUBMISSIONS_PER_RUN = 10
 
+# --- PnL-based decorrelation submission selector ----------------------------
+# WorldQuant endpoint that returns an alpha's daily PnL recordset. Parsed
+# DEFENSIVELY (list-of-[date, value] OR list-of-dicts), so a minor schema
+# difference degrades to "no PnL" instead of crashing. Adjust if your tenant
+# exposes a different path (e.g. /recordsets/daily-pnl).
+WQ_PNL_ENDPOINT_TEMPLATE = os.getenv("WQ_PNL_ENDPOINT", "/alphas/{alpha_id}/recordsets/pnl")
+# Soft correlation budget: a candidate is preferred while its max |PnL corr|
+# with the already-selected basket stays at/under SOFT. HARD is WorldQuant's
+# rejection ceiling (== MAX_SELF_CORRELATION) used only to backfill spare slots.
+SUBMISSION_CORR_SOFT = float(os.getenv("WQ_SUBMISSION_CORR_SOFT", "0.50"))
+SUBMISSION_CORR_HARD = float(os.getenv("WQ_SUBMISSION_CORR_HARD", "0.70"))
+# Minimum overlapping trading days before a pairwise correlation is trusted.
+SUBMISSION_CORR_MIN_OVERLAP = int(os.getenv("WQ_SUBMISSION_CORR_MIN_OVERLAP", "30"))
+# Order/filter submissions with the PnL selector when stored PnL is available.
+# Falls back to the existing AST-similarity _diversified_order when PnL is
+# missing, so enabling it can NEVER break current behaviour.
+SUBMISSION_USE_PNL_SELECTOR = os.getenv("WQ_SUBMISSION_USE_PNL_SELECTOR", "1").strip().lower() in ("1", "true", "yes", "on")
+
+# --- Surrogate pre-screener (SHADOW MODE ONLY by default) -------------------
+# A cheap model that PREDICTS whether a candidate is worth simulating. OFF the
+# hot path by default: SHADOW only LOGS what it WOULD skip and never blocks a
+# simulation, so it cannot starve the generator. Promote to a soft prioritizer
+# ONLY after evaluate_prescreener.py shows an acceptable false-negative rate.
+SURROGATE_ENABLED = os.getenv("WQ_SURROGATE_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on")
+SURROGATE_SHADOW_ONLY = os.getenv("WQ_SURROGATE_SHADOW_ONLY", "1").strip().lower() in ("1", "true", "yes", "on")
+SURROGATE_MODEL_PATH = os.getenv("WQ_SURROGATE_MODEL", str(Path(__file__).with_name("surrogate_model.pkl")))
+# Label: a row is a "winner" if it cleared this Sharpe AND sits in the turnover
+# band. Keep aligned with the promotion gate.
+SURROGATE_WINNER_SHARPE = float(os.getenv("WQ_SURROGATE_WINNER_SHARPE", "1.25"))
+# Probability below which SHADOW mode would (only logs!) consider skipping a sim.
+SURROGATE_SKIP_THRESHOLD = float(os.getenv("WQ_SURROGATE_SKIP_THRESHOLD", "0.10"))
+
 # WorldQuant FITNESS gate (Upgrade #1). BRAIN's headline score is
 # Fitness = sqrt(abs(Returns) / max(turnover, 0.125)) * Sharpe, and the
 # documented submission bar is Fitness >= 1.0 / Sharpe >= 1.25 for delay-1
@@ -982,6 +1033,19 @@ FSA_PENALTY = 0.35         # keep-probability for a candidate carrying an avoide
 # are pushed to the tail and fall off truncation first, so diverse shapes are
 # guaranteed room to breed even before anything qualifies. 1.0 disables the cap.
 SKELETON_MAX_FRACTION = float(os.getenv("WQ_SKELETON_MAX_FRACTION", "0.35"))
+
+# --- Structural FIELD-diversity cap (selection-time, monoculture breaker) ----
+# The skeleton cap above bounds shape monoculture but is BLIND to fields:
+# group_neutralize(rank(iv_a),_) and group_neutralize(rank(iv_b),_) share the
+# skeleton group_neutralize(rank(_),_), so a population can satisfy the skeleton
+# cap while still collapsing onto two volatility fields (exactly the observed
+# gen-2/3 monoculture). After each NSGA-II sort, cap how many surviving members
+# may share the SAME dominant data field; overflow is pushed to the tail so it
+# falls off the [:POPULATION_SIZE] truncation first. This preserves field
+# breadth THROUGH selection (not just at gen-0 seeding), so a couple of
+# high-fitness fields can't crowd the whole pool and breed a correlated
+# offspring family. 1.0 = off.
+FIELD_DIVERSITY_MAX_FRACTION = float(os.getenv("WQ_FIELD_DIVERSITY_MAX_FRACTION", "0.30"))
 
 # --- Originality vs a "crowded" alpha zoo (Upgrade #4) -----------------------
 # Soft penalty (NOT a hard reject, to avoid nuking our own generic archetypes)
@@ -1053,6 +1117,42 @@ def choose_neutralization():
     if sum(weights) <= 0:
         return random.choice(NEUTRALIZATIONS)
     return random.choices(NEUTRALIZATIONS, weights=weights, k=1)[0]
+
+
+# --- Neutralization-OPERATOR diversity (break the group_neutralize monoculture)
+# Every template hardcodes group_neutralize(signal, GROUP) as the outer wrap, and
+# operator mutation only swaps WITHIN an operator category -- group_neutralize is
+# category "Group", so the search can never reach the other neutralizers even
+# though they exist in the catalog. These knobs let the genetic engine RE-WRAP a
+# signal's outer neutralization into a different style (see
+# GeneticEngine._mutate_neutralization).
+#
+# OFF BY DEFAULT (opt-in). group_neutralize is the robust, proven workhorse on
+# this engine and -- crucially -- SETTINGS_NEUTRALIZATION is "NONE", so the
+# IN-EXPRESSION neutralizer is the ONLY neutralization an alpha gets. Swapping it
+# changes an alpha's whole risk profile, so most swaps land OUTSIDE the tuned
+# group/turnover regime and fail the IS gates; with a throttled simulation
+# budget that is mostly wasted quota. The MONOCULTURE is already cured by the
+# selection-time FIELD_DIVERSITY cap (pure reordering, zero alpha-quality risk)
+# plus the inner-signal-diverse seed templates and the periodic reseed -- all of
+# which KEEP group_neutralize. Enable this only to deliberately EXPLORE
+# decorrelation when you have spare budget. Set WQ_NEUT_MUTATION=1 to turn on.
+NEUTRALIZATION_MUTATION_ENABLED = os.getenv("WQ_NEUT_MUTATION", "0").strip().lower() in ("1", "true", "yes", "on")
+# Candidate outer-neutralization STYLES the mutation may pick WHEN enabled. The
+# default set is deliberately GROUP-PRESERVING -- group_zscore / group_rank keep
+# the exact same within-group neutralization as group_neutralize and only change
+# the within-group transform, so they add structural variety WITHOUT stripping
+# the neutralization that makes alphas pass IS. The market-wide neutralizers
+# (normalize / zscore) and the orthogonalizer (vector_neut) are NOT in the
+# default because under neutralization=NONE they drop the group structure /
+# change the risk profile; add them via WQ_NEUT_STYLES only when experimenting.
+# Every style MUST be in operators.json or it is filtered out at startup. NOTE:
+# group_vector_neut (the ideal lever) is NOT in our operators.json yet -- add it
+# via probe_wq before listing it here, or it will be dropped.
+NEUTRALIZATION_STYLES = [s.strip() for s in os.getenv(
+    "WQ_NEUT_STYLES",
+    "group_neutralize,group_zscore,group_rank",
+).split(",") if s.strip()]
 # Universe funnel. The GA explores on ONE consistent, liquid universe
 # (TOP3000 -- deepest history, least small-cap noise, least overfit) so every
 # candidate's Sharpe/turnover is directly comparable under NSGA-II and the

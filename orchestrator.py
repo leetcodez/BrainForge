@@ -14,7 +14,7 @@ import numpy as np
 
 import config
 from db_manager import DatabaseManager
-from network_engine import NetworkEngine
+from network_engine import NetworkEngine, AuthenticationError
 from oos_deflation import OOSDeflationEngine
 from llm_seed_generator import LLMSeedGenerator
 from syntax_validator import SyntaxValidator
@@ -102,6 +102,25 @@ def _alpha_skeleton(expression):
         return "_"
 
     return sig(tree)
+
+
+def _dominant_field(expression, field_set):
+    """The data field a candidate most heavily relies on: the most common
+    field-name token (restricted to `field_set`) in its AST, or None when it
+    references no known field. Used by the selection-time field-diversity cap to
+    stop one or two high-fitness fields from crowding the whole population (the
+    observed implied-vol monoculture). Ties broken by first occurrence."""
+    if not field_set:
+        return None
+    try:
+        tree = ast.parse(expression, mode="eval")
+    except Exception:
+        return None
+    counts = Counter(n.id for n in ast.walk(tree)
+                     if isinstance(n, ast.Name) and n.id in field_set)
+    if not counts:
+        return None
+    return counts.most_common(1)[0][0]
 
 
 def _split_group_neutralize(expression):
@@ -316,6 +335,19 @@ class GeneticEngine:
                             if getattr(config, "SPREAD_MUTATION_ENABLED", True) else [])
         if self._spread_ops:
             self._mutation_ops.append(self._mutate_spread)
+        # Neutralization-style mutation (monoculture breaker): re-wrap a signal's
+        # OUTER neutralization into a different style (normalize / zscore /
+        # group_zscore / group_rank / vector_neut). Operator mutation alone can
+        # never do this -- it only swaps WITHIN a category, and group_neutralize
+        # is "Group" while the cross-sectional neutralizers are not. Only styles
+        # present in the live operator set are offered, so an absent operator is
+        # silently skipped instead of producing a guaranteed validator reject.
+        allowed_lower = {o.lower() for o in allowed}
+        self._neut_styles = [s for s in getattr(config, "NEUTRALIZATION_STYLES", [])
+                             if s.lower() in allowed_lower]
+        if (getattr(config, "NEUTRALIZATION_MUTATION_ENABLED", True)
+                and len(self._neut_styles) > 1):
+            self._mutation_ops.append(self._mutate_neutralization)
         # Over-used winner motifs to avoid (set by the factory each generation).
         self.avoid_motifs = set()
 
@@ -505,6 +537,56 @@ class GeneticEngine:
         except Exception:
             return None
 
+    def _mutate_neutralization(self, expression):
+        """Monoculture breaker: re-wrap the OUTER neutralization of a
+        group_neutralize(signal, GROUP) alpha into a DIFFERENT neutralization
+        style, so the search escapes the single-neutralizer (always
+        group_neutralize) collapse. Styles:
+          * normalize / zscore       -> market-wide neutralizers (drop the GROUP);
+          * group_zscore / group_rank -> keep the GROUP, change the within-group op;
+          * vector_neut(signal, rank(risk)) -> ORTHOGONALIZE the signal against a
+            ranked risk field, the published WorldQuant lever for decorrelating
+            an over-collinear family (e.g. orthogonalize an IV-heavy alpha
+            against a base risk field). The risk field is drawn from the LIVE
+            DATA_DICTIONARY but EXCLUDES the fields the signal already uses, so
+            vector_neut can't (partly) cancel the very signal we want to keep.
+        Only fires on a group_neutralize-rooted alpha; returns None otherwise so
+        mutate() simply retries another operator. The validator inside mutate()
+        rejects any malformed result."""
+        styles = getattr(self, "_neut_styles", None)
+        if not styles:
+            return None
+        inner, group = _split_group_neutralize(expression)
+        if inner is None or group is None:
+            return None
+        choices = [s for s in styles if s.lower() != "group_neutralize"]
+        if not choices:
+            return None
+        style = random.choice(choices)
+        s = style.lower()
+        if s == "vector_neut":
+            pool = config.DATA_DICTIONARY
+            if not pool:
+                return None
+            # vector_neut(x, y) projects x off y, so the risk vector y must NOT
+            # be one of the signal's own fields -- orthogonalizing against itself
+            # would cancel the very signal we want to keep. Draw y from OUTSIDE
+            # the inner expression's fields (fall back to the full pool only if
+            # the signal somehow uses every field).
+            try:
+                used = {n.id for n in ast.walk(ast.parse(inner, mode="eval"))
+                        if isinstance(n, ast.Name)}
+            except Exception:
+                used = set()
+            risk_pool = [f for f in pool if f not in used] or pool
+            risk = random.choice(risk_pool)
+            candidate = f"vector_neut({inner}, rank({risk}))"
+        elif s in ("group_zscore", "group_rank"):
+            candidate = f"{style}({inner}, {group})"
+        else:  # normalize / zscore / any other 1-arg cross-sectional neutralizer
+            candidate = f"{style}({inner})"
+        return candidate
+
     def mutate(self, expression):
         for _ in range(4):
             op = random.choice(self._mutation_ops)
@@ -608,6 +690,13 @@ class AlphaFactory:
         self.refined = set()
         self.submission_count = 0
         self.generation = 0
+        # Mid-generation resume state. Populated by _restore_checkpoint when a
+        # run was interrupted AFTER this generation's offspring batch was
+        # generated but BEFORE the generation finished evaluating. On resume the
+        # loop replays exactly this batch (dedup skips the already-simulated
+        # members) instead of regenerating a whole fresh generation.
+        self._resume_generation = None
+        self._resume_offspring = None
 
         self.sim_semaphore = None
         self._state_lock = asyncio.Lock()
@@ -757,17 +846,38 @@ class AlphaFactory:
         await self.db.close()
 
     # --- run-level checkpoint (survives forced logouts) ---------------------
-    def _save_checkpoint(self):
+    def _save_checkpoint(self, pending_offspring=None):
         """Persist run-level progress (next generation index + counters) so a
         restart after a logout resumes the cadence instead of replaying the loop
         from zero. The population itself is already checkpointed row-by-row in
-        the database during evaluation."""
+        the database during evaluation.
+
+        When pending_offspring is provided, this writes a MID-GENERATION
+        checkpoint: it records the current generation's full offspring candidate
+        list (expression|universe|decay) so an interrupted run resumes by
+        finishing exactly that batch -- the result_cache/evaluated_canon dedup
+        skips every offspring already simulated, so only the UNFINISHED ones are
+        re-run instead of regenerating (and re-simulating) a whole fresh
+        generation. The end-of-generation _save_checkpoint() call omits the
+        pending block, which clears it once the generation completes."""
         try:
-            Path(config.CHECKPOINT_PATH).write_text(json.dumps({
+            data = {
                 "generation": self.generation + 1,
                 "submission_count": self.submission_count,
                 "timestamp": time.time(),
-            }), encoding="utf-8")
+            }
+            if pending_offspring is not None:
+                # Still INSIDE this generation (not past it): resume must
+                # re-enter self.generation, not the next one.
+                data["generation"] = self.generation
+                data["pending_generation"] = self.generation
+                data["pending_offspring"] = [
+                    {"expression": c["expression"], "universe": c["universe"],
+                     "decay": c["decay"], "parent_id": c.get("parent_id"),
+                     "mutation_type": c.get("mutation_type"), "origin": c.get("origin")}
+                    for c in pending_offspring if c.get("expression")
+                ]
+            Path(config.CHECKPOINT_PATH).write_text(json.dumps(data), encoding="utf-8")
         except Exception as e:
             logger.warning(f"Could not write checkpoint: {e}")
 
@@ -781,9 +891,31 @@ class AlphaFactory:
             return
         self.generation = int(data.get("generation", 0))
         self.submission_count = int(data.get("submission_count", 0))
-        logger.info(
-            f"Restored checkpoint: resuming at generation {self.generation} "
-            f"({self.submission_count} prior submissions).")
+        # Mid-generation resume: if the interrupted run had already generated
+        # this generation's offspring batch, reload it so run() finishes exactly
+        # that batch (dedup skips the already-simulated members) instead of
+        # redoing the whole generation. Absent/empty -> normal
+        # generation-boundary resume (fully backward compatible).
+        pending_gen = data.get("pending_generation")
+        pending = data.get("pending_offspring")
+        if pending_gen is not None and pending:
+            self._resume_generation = int(pending_gen)
+            self._resume_offspring = [
+                {"expression": c["expression"], "universe": c["universe"],
+                 "decay": c["decay"], "parent_id": c.get("parent_id"),
+                 "mutation_type": c.get("mutation_type"), "origin": c.get("origin")}
+                for c in pending
+                if isinstance(c, dict) and c.get("expression")
+            ]
+            logger.info(
+                f"Restored checkpoint: resuming at generation {self.generation} "
+                f"({self.submission_count} prior submissions; finishing "
+                f"{len(self._resume_offspring)} pending offspring from an "
+                f"interrupted generation).")
+        else:
+            logger.info(
+                f"Restored checkpoint: resuming at generation {self.generation} "
+                f"({self.submission_count} prior submissions).")
 
     # --- simulation ----------------------------------------------------------
     async def _simulate_alpha(self, expression, universe, decay) -> SimulationResult:
@@ -1004,6 +1136,12 @@ class AlphaFactory:
     # --- evaluation ----------------------------------------------------------
     async def _evaluate_population(self, candidates, allow_grid=True, skip_loser_filter=False):
         prepared = []
+        # PASSIVE lineage capture: candidates may carry origin / parent_id /
+        # mutation_type tags (seed, ga, reseed, refine, negation, universe_sweep).
+        # Key them by canonical|universe|decay here and replay them into the
+        # enrichment save below, so the instrumentation columns populate WITHOUT
+        # touching any selection / mutation / simulation behaviour.
+        lineage_by_key = {}
         for cand in candidates:
             expr = cand.get("expression")
             if not expr:
@@ -1020,6 +1158,12 @@ class AlphaFactory:
                 continue
             self.evaluated_canon.add(key)
             prepared.append((canonical, universe, decay))
+            if cand.get("origin") or cand.get("parent_id") or cand.get("mutation_type"):
+                lineage_by_key.setdefault(key, {
+                    "parent_id": cand.get("parent_id"),
+                    "mutation_type": cand.get("mutation_type"),
+                    "origin": cand.get("origin"),
+                })
 
         filtered = []
         for canonical, universe, decay in prepared:
@@ -1037,10 +1181,31 @@ class AlphaFactory:
         tasks = [asyncio.create_task(self._simulate_alpha(c, u, d)) for c, u, d in filtered]
         self._active_tasks.update(tasks)
         try:
-            results = await asyncio.gather(*tasks)
+            results = await asyncio.gather(*tasks, return_exceptions=True)
         finally:
             for t in tasks:
                 self._active_tasks.discard(t)
+
+        # Fail SOFT on a per-alpha transport error. The network engine already
+        # retries transport / 5xx failures; if it still gives up and RAISES on a
+        # single alpha, that exception used to abort the whole asyncio.gather and
+        # crash run() mid-generation. Downgrade it to a skipped alpha instead --
+        # every completed sim in this batch already raw-saved itself the instant
+        # it finished, so nothing durable is lost and the dedup guard skips it on
+        # resume. AuthenticationError is the ONE exception we re-raise: it means
+        # the session is permanently lost (the human re-auth budget was
+        # exhausted), so the run should stop cleanly and resume from the
+        # checkpoint once a fresh session is available rather than silently
+        # booking every remaining alpha as a loser.
+        clean = []
+        for item in results:
+            if isinstance(item, AuthenticationError):
+                raise item
+            if isinstance(item, BaseException):
+                logger.warning(f"Simulation task failed; skipping alpha: {item}")
+                continue
+            clean.append(item)
+        results = clean
 
         valid = [r for r in results if r.valid]
         async with self._state_lock:
@@ -1157,6 +1322,8 @@ class AlphaFactory:
                     self.loser_exprs.append(rec["expression"])
                 if rec.get("_fail_reason"):
                     self._remember_failure(rec["expression"], rec["_fail_reason"])
+                _lin = lineage_by_key.get(
+                    f'{rec["expression"]}|{rec["universe"]}|{rec["decay"]}', {})
                 await self.db.save_alpha(
                     rec["expression"], rec["universe"], rec["decay"], rec["alpha_id"],
                     self.generation, rec["sharpe"], rec["turnover"], rec["fitness"],
@@ -1165,6 +1332,9 @@ class AlphaFactory:
                     returns=rec.get("returns", 0.0), oos_sharpe=rec.get("oos_sharpe"),
                     is_qualified=1 if rec.get("is_qualified") else 0,
                     failed_checks=rec.get("failed_checks", ""),
+                    parent_id=_lin.get("parent_id"),
+                    mutation_type=_lin.get("mutation_type"),
+                    origin=_lin.get("origin"),
                 )
 
         # Success-side diversity (Upgrade #3) + portfolio overfitting diagnostic
@@ -1260,7 +1430,10 @@ class AlphaFactory:
                         continue
                     seen_neg.add(key)
                     negations.append({"expression": mirror, "universe": rec["universe"],
-                                      "decay": rec["decay"], "_mirror_sharpe": mirror_sharpe})
+                                      "decay": rec["decay"], "_mirror_sharpe": mirror_sharpe,
+                                      "origin": "negation",
+                                      "parent_id": rec.get("alpha_id") or None,
+                                      "mutation_type": "negation"})
                 # Highest expected (mirror) Sharpe first, then bound the batch so
                 # the harvest can't overwhelm the throttled /simulations queue.
                 negations.sort(key=lambda c: c.get("_mirror_sharpe", 0.0), reverse=True)
@@ -1303,6 +1476,11 @@ class AlphaFactory:
             if not candidates:
                 stale_rounds += 1
                 continue
+            # PASSIVE lineage tags: which winner was hill-climbed, on which axis.
+            for _c in candidates:
+                _c.setdefault("origin", "refine")
+                _c.setdefault("parent_id", best.get("alpha_id") or None)
+                _c.setdefault("mutation_type", f"refine:{dimension}")
             branches_used += len(candidates)
             records = await self._evaluate_population(candidates, allow_grid=False)
             improved = False
@@ -1485,31 +1663,10 @@ class AlphaFactory:
         for uni in config.UNIVERSES:
             if uni == rec.get("universe"):
                 continue
-            cands.append({"expression": expr, "universe": uni, "decay": rec["decay"]})
-        return cands
-
-    # Tier 2: expression windows -- nudge each lookback to its nearest smaller
-    # and larger allowed value. Adds limited degrees of freedom, so it is gated
-    # behind a settings plateau.
-    def _neighbors_windows(self, rec):
-        expr = rec["expression"]
-        try:
-            tree = ast.parse(expr, mode="eval")
-        except Exception:
-            return []
-        consts = [n for n in ast.walk(tree)
-                  if isinstance(n, ast.Constant) and isinstance(n.value, int) and not isinstance(n.value, bool)]
-        pool = sorted(set(_SHORT_LOOKBACKS + _LONG_LOOKBACKS))
-        cands = []
-        for idx in range(min(len(consts), 4)):
-            current = consts[idx].value
-            smaller = [p for p in pool if p < current]
-            larger = [p for p in pool if p > current]
-            new_vals = ([max(smaller)] if smaller else []) + ([min(larger)] if larger else [])
-            for new_val in new_vals:
-                variant = self._replace_nth_int(expr, idx, new_val)
-                if variant:
-                    cands.append({"expression": variant, "universe": rec["universe"], "decay": rec["decay"]})
+            cands.append({"expression": expr, "universe": uni, "decay": rec["decay"],
+                          "origin": "universe_sweep",
+                          "parent_id": rec.get("alpha_id") or None,
+                          "mutation_type": "universe_sweep"})
         return cands
 
     @staticmethod
@@ -1566,6 +1723,37 @@ class AlphaFactory:
             skel = _alpha_skeleton(rec.get("expression", ""))
             if counts[skel] < cap:
                 counts[skel] += 1
+                kept.append(rec)
+            else:
+                overflow.append(rec)
+        return kept + overflow
+
+    def _enforce_field_diversity(self, ordered):
+        """Field-level monoculture breaker (complements the skeleton cap, which is
+        blind to fields). Walks the NSGA-II-ordered list best-first and, once a
+        single DOMINANT data field already fills FIELD_DIVERSITY_MAX_FRACTION of
+        POPULATION_SIZE, pushes further members relying on that same field to the
+        TAIL so they fall off the [:POPULATION_SIZE] truncation first. This keeps
+        field breadth alive THROUGH selection -- so two high-fitness fields (e.g.
+        the observed implied-vol pair) can't crowd out the whole pool and breed a
+        correlated offspring family. Only reorders survivors; never shrinks the
+        pool. Disabled when the fraction is >= 1."""
+        frac = getattr(config, "FIELD_DIVERSITY_MAX_FRACTION", 1.0)
+        if frac >= 1.0 or not ordered:
+            return ordered
+        field_set = getattr(self.genetic, "_field_set", set())
+        if not field_set:
+            return ordered
+        cap = max(1, int(config.POPULATION_SIZE * frac))
+        counts = Counter()
+        kept, overflow = [], []
+        for rec in ordered:
+            field = _dominant_field(rec.get("expression", ""), field_set)
+            if field is None:
+                kept.append(rec)  # no identifiable field -> never crowd-capped
+                continue
+            if counts[field] < cap:
+                counts[field] += 1
                 kept.append(rec)
             else:
                 overflow.append(rec)
@@ -1695,7 +1883,10 @@ class AlphaFactory:
                 continue
             seen_neg.add(key)
             negations.append({"expression": mirror, "universe": rec["universe"],
-                              "decay": rec["decay"], "_mirror_sharpe": mirror_sharpe})
+                              "decay": rec["decay"], "_mirror_sharpe": mirror_sharpe,
+                              "origin": "negation_resume",
+                              "parent_id": rec.get("alpha_id") or None,
+                              "mutation_type": "negation"})
         if not negations:
             return
         negations.sort(key=lambda c: c.get("_mirror_sharpe", 0.0), reverse=True)
@@ -1797,7 +1988,8 @@ class AlphaFactory:
         if not seeds:
             seeds = [self.llm.fill_template(t) for t in config.QUANT_TEMPLATES]
         candidates = [{"expression": s, "universe": config.PRIMARY_UNIVERSE,
-                       "decay": self._seed_decay(s)} for s in seeds]
+                       "decay": self._seed_decay(s), "origin": "seed",
+                       "mutation_type": "llm_seed"} for s in seeds]
         await self._evaluate_population(candidates, allow_grid=False)
         logger.info(f"Seeded initial population with {len(self.population)} alphas.")
 
@@ -1811,7 +2003,7 @@ class AlphaFactory:
         start_gen = min(self.generation, generations)
         for gen in range(start_gen, generations):
             self.generation = gen
-            self.population = self._enforce_skeleton_diversity(self._nsga_ii_sort(self.population))[: config.POPULATION_SIZE]
+            self.population = self._enforce_field_diversity(self._enforce_skeleton_diversity(self._nsga_ii_sort(self.population)))[: config.POPULATION_SIZE]
             if not self.population:
                 logger.warning("Population collapsed to empty; re-seeding.")
                 await self._bootstrap_population()
@@ -1822,32 +2014,66 @@ class AlphaFactory:
                         f"best_sharpe={best['sharpe']:.3f} submissions={self.submission_count}")
 
             elite_count = max(1, int(config.POPULATION_SIZE * config.ELITISM_RATIO))
-            offspring = []
 
-            if gen > 0 and gen % config.EXPERIENCE_RESEED_INTERVAL == 0:
-                seeds = await self.llm.generate_seeds(config.EXPERIENCE_RESEED_COUNT, experience=self.experience, avoid_motifs=self._avoid_motifs)
-                offspring.extend({"expression": s, "universe": config.PRIMARY_UNIVERSE,
-                                  "decay": self._seed_decay(s)} for s in seeds)
+            # Mid-generation resume: if a checkpoint saved THIS generation's
+            # offspring batch (an interrupted run), replay the exact same list
+            # instead of regenerating a fresh one. The result_cache/
+            # evaluated_canon dedup then skips every offspring already simulated
+            # before the restart, so only the UNFINISHED offspring of this
+            # generation are re-run -- turning a mid-gen restart from "redo the
+            # whole generation" into "finish the batch".
+            resumed_offspring = None
+            if (self._resume_offspring is not None
+                    and self._resume_generation == gen):
+                resumed_offspring = self._resume_offspring
+                self._resume_offspring = None
+                self._resume_generation = None
+                logger.info(
+                    f"Gen {gen}: replaying {len(resumed_offspring)} checkpointed "
+                    f"offspring to finish an interrupted generation.")
 
-            target = max(1, config.POPULATION_SIZE - elite_count)
-            guard = 0
-            while len(offspring) < target and guard < target * 8:
-                guard += 1
-                parents = self._select_parents()
-                if not parents:
-                    break
-                p1, p2 = parents
-                child = self.genetic.crossover(p1["expression"], p2["expression"])
-                if random.random() < config.MUTATION_RATE:
-                    child = self.genetic.mutate(child)
-                offspring.append({"expression": child,
-                                  "universe": config.PRIMARY_UNIVERSE,
-                                  "decay": self._seed_decay(child)})
+            if resumed_offspring is not None:
+                offspring = resumed_offspring
+            else:
+                offspring = []
+
+                if gen > 0 and gen % config.EXPERIENCE_RESEED_INTERVAL == 0:
+                    seeds = await self.llm.generate_seeds(config.EXPERIENCE_RESEED_COUNT, experience=self.experience, avoid_motifs=self._avoid_motifs)
+                    offspring.extend({"expression": s, "universe": config.PRIMARY_UNIVERSE,
+                                      "decay": self._seed_decay(s), "origin": "reseed",
+                                      "mutation_type": "llm_reseed"} for s in seeds)
+
+                target = max(1, config.POPULATION_SIZE - elite_count)
+                guard = 0
+                while len(offspring) < target and guard < target * 8:
+                    guard += 1
+                    parents = self._select_parents()
+                    if not parents:
+                        break
+                    p1, p2 = parents
+                    child = self.genetic.crossover(p1["expression"], p2["expression"])
+                    mtype = "crossover"
+                    if random.random() < config.MUTATION_RATE:
+                        child = self.genetic.mutate(child)
+                        mtype = "crossover+mutation"
+                    offspring.append({"expression": child,
+                                      "universe": config.PRIMARY_UNIVERSE,
+                                      "decay": self._seed_decay(child),
+                                      "origin": "ga",
+                                      "parent_id": p1.get("alpha_id") or None,
+                                      "mutation_type": mtype})
+
+                # Persist this generation's offspring batch BEFORE evaluating it,
+                # so an interrupted run resumes by finishing exactly this batch
+                # (dedup skips the already-simulated members) rather than redoing
+                # the whole generation. The end-of-generation checkpoint below
+                # clears the pending block once this generation completes.
+                self._save_checkpoint(pending_offspring=offspring)
 
             # Elites are carried over implicitly: they stay in self.population and
             # are NEVER re-simulated. Only genuinely new offspring are evaluated.
             await self._evaluate_population(offspring, allow_grid=True)
-            self.population = self._enforce_skeleton_diversity(self._nsga_ii_sort(self.population))[: config.POPULATION_SIZE]
+            self.population = self._enforce_field_diversity(self._enforce_skeleton_diversity(self._nsga_ii_sort(self.population)))[: config.POPULATION_SIZE]
             self._trim_state()
             self._save_checkpoint()
 

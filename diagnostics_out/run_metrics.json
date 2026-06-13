@@ -1,0 +1,674 @@
+{
+  "headline": {
+    "operator_entropy_norm": 0.5835998734608251,
+    "effective_field_count": 7.925577466355372,
+    "max_neut_share": 0.9321546052631579,
+    "enb_denoised_qualified": 12.082220092785283,
+    "enb_denoised_all": 12.082220092785283,
+    "pbo": 0.2857142857142857,
+    "dsr_survival_rate_true_N": 0.0,
+    "best_fitness_lift_vs_seed": -0.2241456619835809,
+    "overall_health": 52.8,
+    "vanity_ratio": 47.3
+  },
+  "deltas": {},
+  "module1": {
+    "n_alphas": 2432,
+    "n_parsed": 2432,
+    "operator_usage": {
+      "ts_zscore": 4483,
+      "group_neutralize": 4309,
+      "ts_rank": 3240,
+      "vec_avg": 3023,
+      "add": 2694,
+      "rank": 2533,
+      "trade_when": 2526,
+      "zscore": 2369,
+      "subtract": 1588,
+      "winsorize": 1352,
+      "ts_decay_linear": 240,
+      "normalize": 199,
+      "ts_delta": 194,
+      "ts_mean": 160,
+      "group_zscore": 128,
+      "quantile": 106,
+      "scale": 68,
+      "ts_av_diff": 67,
+      "ts_std_dev": 50,
+      "ts_quantile": 49,
+      "group_rank": 32,
+      "vec_sum": 28,
+      "ts_count_nans": 22,
+      "sign": 15,
+      "group_scale": 12,
+      "divide": 8,
+      "ts_arg_max": 7,
+      "ts_backfill": 7,
+      "power": 7,
+      "ts_delay": 5,
+      "ts_scale": 4,
+      "ts_product": 4,
+      "min": 4,
+      "last_diff_value": 4,
+      "ts_sum": 3,
+      "ts_arg_min": 3,
+      "signed_power": 2,
+      "max": 2,
+      "multiply": 2
+    },
+    "operator_coverage": 0.582089552238806,
+    "operators_available": 67,
+    "operators_used": 39,
+    "operators_zero_usage": [
+      "abs",
+      "and",
+      "bucket",
+      "days_from_last_change",
+      "densify",
+      "equal",
+      "greater",
+      "greater_equal",
+      "group_backfill",
+      "group_mean",
+      "hump",
+      "if_else",
+      "inverse",
+      "is_nan",
+      "kth_element",
+      "less",
+      "less_equal",
+      "log",
+      "not",
+      "not_equal",
+      "or",
+      "reverse",
+      "sqrt",
+      "ts_corr",
+      "ts_covariance",
+      "ts_regression",
+      "ts_step",
+      "vector_neut"
+    ],
+    "operator_entropy_norm": 0.5835998734608251,
+    "neutralization_style": {
+      "group_neutralize": 2267,
+      "none": 94,
+      "group_zscore": 38,
+      "group_rank": 22,
+      "group_scale": 9,
+      "zscore": 2
+    },
+    "neutralization_group_key": {
+      "INDUSTRY": 1335,
+      "SUBINDUSTRY": 513,
+      "SECTOR": 317,
+      "MARKET": 173
+    },
+    "max_neut_share": 0.9321546052631579,
+    "field_hhi": 0.12617377146902792,
+    "effective_field_count": 7.925577466355372,
+    "field_family_hhi": 0.6755081812559242,
+    "effective_family_count": 1.480366970746041,
+    "family_distribution": {
+      "options_vol": 8424,
+      "earnings_event": 2123,
+      "price_volume": 9,
+      "analyst": 7,
+      "unknown": 7
+    },
+    "top_fields": {
+      "ninety_day_interpolated_implied_volatility": 2920,
+      "fivehundred_day_close_to_close_vol": 1320,
+      "ern4_impliedee": 1125,
+      "eleventh_event_option_effect_2": 1003,
+      "ern4_m1fcaststrapx": 900,
+      "put_call_slope_28d": 731,
+      "second_month_highest_strike_price": 299,
+      "sixth_historical_announcement_effect": 159,
+      "ern4_ernstrapct5": 158,
+      "ern4_60dorhv": 144,
+      "ern4_500dclshv": 102,
+      "ern4_120dclshvxern": 102,
+      "tenth_historical_straddle_price_percent": 65,
+      "ern4_ernmvstdev": 55,
+      "ern4_fcsterneffct": 54
+    },
+    "archetype_distribution": {
+      "group_neutralize(-rank(_), _)": 23,
+      "group_neutralize(-ts_zscore(_, '_'), _)": 20,
+      "group_neutralize(rank(_), _)": 19,
+      "group_neutralize(trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(_, '_')), '_'), -'_'), _)": 17,
+      "group_neutralize(trade_when(ts_zscore(_, '_') > '_', ts_zscore(_, '_'), -'_'), _)": 16,
+      "group_neutralize(trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(_, '_')), '_'), -'_')), '_')), _))), ts_zscore(winsorize(ts_rank(_, '_')), '_'), -'_'), _)": 16,
+      "group_neutralize(rank(ts_rank(_, '_')), _)": 15,
+      "group_neutralize(ts_zscore(_, '_'), _)": 15,
+      "group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), _)": 15,
+      "group_neutralize(rank(ts_zscore(vec_avg(_), '_')), _)": 14,
+      "group_neutralize(ts_delta(ts_delta(_, '_'), '_'), _)": 14,
+      "group_neutralize(rank(ts_zscore(_, '_')), _)": 14
+    },
+    "n_distinct_skeletons": 1484,
+    "max_archetype_share": 0.009457236842105263,
+    "depth": {
+      "n": 2432,
+      "min": 4.0,
+      "p25": 8.0,
+      "median": 11.0,
+      "mean": 11.303042763157896,
+      "p75": 15.0,
+      "max": 31.0
+    },
+    "nodes": {
+      "n": 2432,
+      "min": 6.0,
+      "p25": 22.0,
+      "median": 44.0,
+      "mean": 59.428865131578945,
+      "p75": 95.0,
+      "max": 241.0
+    },
+    "turnover": {
+      "n": 2432,
+      "min": 0.0,
+      "p25": 0.0898,
+      "median": 0.19915,
+      "mean": 0.26323939144736846,
+      "p75": 0.37539999999999996,
+      "max": 1.5316
+    },
+    "decay": {
+      "n": 2432,
+      "min": 0.0,
+      "p25": 0.0,
+      "median": 0.0,
+      "mean": 4.8129111842105265,
+      "p75": 10.0,
+      "max": 20.0
+    },
+    "top_operator_bigrams": {
+      "group_neutralize>rank": 1868,
+      "rank>ts_rank": 1595,
+      "trade_when>ts_zscore": 1302,
+      "winsorize>ts_rank": 1276,
+      "ts_zscore>winsorize": 1261,
+      "subtract>vec_avg": 1206,
+      "zscore>group_neutralize": 1193,
+      "add>add": 1183,
+      "ts_rank>add": 1181,
+      "group_neutralize>trade_when": 1168,
+      "ts_rank>subtract": 1122,
+      "zscore>zscore": 1046
+    },
+    "ast_clone_similarity_mean": 0.3996223950393594
+  },
+  "behavioral_all": {
+    "available": true,
+    "scope": "all",
+    "n_alphas_in_matrix": 572,
+    "n_days": 1234,
+    "coverage": 1.0,
+    "q_ratio_N_over_T": 0.46353322528363045,
+    "enb_raw": 10.034049819961039,
+    "enb_denoised": 12.082220092785283,
+    "mp_lambda_plus": 2.825198713255813,
+    "pc1_share_raw": 0.5704625169032846,
+    "pc1_share_denoised": 0.5704625169032848,
+    "mean_abs_corr": 0.5540877434692871,
+    "cluster_count": {
+      "0.5": 1,
+      "0.7": 31
+    },
+    "cluster_representatives": [
+      {
+        "size": 511,
+        "alpha_id": "0m8RdJbv",
+        "fitness": 0.3523108347370643,
+        "sharpe": 2.96,
+        "archetype": "group_neutralize(trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), _)",
+        "expression": "group_neutralize(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), INDUSTRY)"
+      },
+      {
+        "size": 15,
+        "alpha_id": "88LGR6ko",
+        "fitness": -0.027372855434080464,
+        "sharpe": 1.95,
+        "archetype": "group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), _)",
+        "expression": "group_neutralize(trade_when(ts_zscore(put_call_slope_28d, 120) > 0, trade_when(ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), INDUSTRY)"
+      },
+      {
+        "size": 9,
+        "alpha_id": "GrolLVo5",
+        "fitness": -0.016210184190506384,
+        "sharpe": 1.64,
+        "archetype": "group_neutralize(trade_when(ts_zscore(_, '_') > '_', ts_quantile(ts_zscore(-ts_zscore(subtract(_, vec_avg(_)), '_'), '_'), '_'), -'_'), _)",
+        "expression": "group_neutralize(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > 0, ts_quantile(ts_zscore(-ts_zscore(subtract(second_month_highest_strike_price, vec_avg(ern4_60dorhv)), 10), 180), 180), -1), INDUSTRY)"
+      },
+      {
+        "size": 6,
+        "alpha_id": "QPQO7pw5",
+        "fitness": -0.02732516264957548,
+        "sharpe": 2.07,
+        "archetype": "group_neutralize(trade_when(ts_zscore(_, '_') > '_', ts_mean(trade_when(ts_backfill(_, '_') > '_', trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(rank(_), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), '_'), -'_'), _)",
+        "expression": "group_neutralize(trade_when(ts_zscore(ten_day_intraday_historical_volatility, 60) > 0, ts_mean(trade_when(ts_backfill(put_call_slope_28d, 180) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(rank(sixth_historical_announcement_effect), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), 5), -1), INDUSTRY)"
+      },
+      {
+        "size": 4,
+        "alpha_id": "KPLVJbnN",
+        "fitness": -0.027976104240041644,
+        "sharpe": 1.55,
+        "archetype": "group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(add(_, subtract(_, vec_avg(_))) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), _)",
+        "expression": "group_neutralize(trade_when(ts_zscore(put_call_slope_28d, 60) > 0, trade_when(add(ninety_day_interpolated_implied_volatility, subtract(eleventh_event_option_effect_2, vec_avg(ern4_120dclshvxern))) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), INDUSTRY)"
+      },
+      {
+        "size": 2,
+        "alpha_id": "bl9r2Wx6",
+        "fitness": -0.0243054635820533,
+        "sharpe": 2.22,
+        "archetype": "group_neutralize(trade_when(ts_zscore(subtract(subtract(_, _), vec_avg(_)), '_') > '_', trade_when(ts_zscore(_, '_') > normalize(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), _)",
+        "expression": "group_neutralize(trade_when(ts_zscore(subtract(subtract(put_call_slope_28d, sixty_day_interpolated_implied_volatility), vec_avg(ern4_fcsterneffct)), 120) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > normalize(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), INDUSTRY)"
+      },
+      {
+        "size": 1,
+        "alpha_id": "mLX5bAZE",
+        "fitness": -0.012032827136564247,
+        "sharpe": 1.34,
+        "archetype": "group_neutralize(ts_decay_linear(trade_when(ts_zscore(_, '_') > group_neutralize(rank(ts_rank(_, '_')), _), ts_zscore(winsorize(ts_rank(_, '_')), '_'), -'_'), '_'), _)",
+        "expression": "group_neutralize(ts_decay_linear(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 60) > group_neutralize(rank(ts_rank(ninety_day_interpolated_implied_volatility, 60)), MARKET), ts_zscore(winsorize(ts_rank(ninety_day_interpolated_implied_volatility, 60)), 252), -1), 10), INDUSTRY)"
+      },
+      {
+        "size": 1,
+        "alpha_id": "3qAp9nnO",
+        "fitness": -0.01886610913348148,
+        "sharpe": 1.42,
+        "archetype": "group_neutralize(ts_rank(-trade_when(ts_zscore(_, '_') > '_', ts_zscore(subtract(_, vec_avg(_)), '_'), -'_'), '_'), _)",
+        "expression": "group_neutralize(ts_rank(-trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 60) > 0, ts_zscore(subtract(second_month_highest_strike_price, vec_avg(ern4_60dorhv)), 10), -1), 60), INDUSTRY)"
+      },
+      {
+        "size": 1,
+        "alpha_id": "O09rNZvY",
+        "fitness": -0.025695893717898072,
+        "sharpe": 1.46,
+        "archetype": "group_neutralize(trade_when(group_neutralize(rank(ts_rank(_, '_')), _) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(add(_, _), _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(_, '_')), '_'), -'_'), _)",
+        "expression": "group_neutralize(trade_when(group_neutralize(rank(ts_rank(ninety_day_interpolated_implied_volatility, 60)), MARKET) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(add(announcement_effect_8, ninety_day_interpolated_implied_volatility), eleventh_event_option_effect_2), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(ninety_day_interpolated_implied_volatility, 60)), 180), -5), INDUSTRY)"
+      },
+      {
+        "size": 1,
+        "alpha_id": "e7rbGw3g",
+        "fitness": -0.02857355961020112,
+        "sharpe": 1.73,
+        "archetype": "group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), -'_'), _)",
+        "expression": "group_neutralize(trade_when(ts_zscore(high_strike_month1, 120) > 0, trade_when(ts_zscore(put_call_slope_28d, 60) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -5), -1), INDUSTRY)"
+      },
+      {
+        "size": 1,
+        "alpha_id": "ZYoa22Ax",
+        "fitness": -0.023514758575998693,
+        "sharpe": 1.91,
+        "archetype": "group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), -'_'), _)",
+        "expression": "group_neutralize(trade_when(ts_zscore(eighth_event_straddle_price_percent_of_equity, 180) > 0, trade_when(ts_zscore(put_call_slope_28d, 180) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), -1), INDUSTRY)"
+      },
+      {
+        "size": 1,
+        "alpha_id": "npWanJ6M",
+        "fitness": -0.021564956337762373,
+        "sharpe": 1.98,
+        "archetype": "group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), -'_'), _)",
+        "expression": "group_neutralize(trade_when(ts_zscore(seventh_historical_announcement_effect, 252) > 0, trade_when(ts_zscore(put_call_slope_28d, 120) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -5), -1), INDUSTRY)"
+      }
+    ]
+  },
+  "behavioral_qualified": {
+    "available": true,
+    "scope": "qualified",
+    "n_alphas_in_matrix": 572,
+    "n_days": 1234,
+    "coverage": 1.0,
+    "q_ratio_N_over_T": 0.46353322528363045,
+    "enb_raw": 10.034049819961039,
+    "enb_denoised": 12.082220092785283,
+    "mp_lambda_plus": 2.825198713255813,
+    "pc1_share_raw": 0.5704625169032846,
+    "pc1_share_denoised": 0.5704625169032848,
+    "mean_abs_corr": 0.5540877434692871,
+    "cluster_count": {
+      "0.5": 1,
+      "0.7": 31
+    },
+    "cluster_representatives": [
+      {
+        "size": 511,
+        "alpha_id": "0m8RdJbv",
+        "fitness": 0.3523108347370643,
+        "sharpe": 2.96,
+        "archetype": "group_neutralize(trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), _)",
+        "expression": "group_neutralize(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), INDUSTRY)"
+      },
+      {
+        "size": 15,
+        "alpha_id": "88LGR6ko",
+        "fitness": -0.027372855434080464,
+        "sharpe": 1.95,
+        "archetype": "group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), _)",
+        "expression": "group_neutralize(trade_when(ts_zscore(put_call_slope_28d, 120) > 0, trade_when(ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), INDUSTRY)"
+      },
+      {
+        "size": 9,
+        "alpha_id": "GrolLVo5",
+        "fitness": -0.016210184190506384,
+        "sharpe": 1.64,
+        "archetype": "group_neutralize(trade_when(ts_zscore(_, '_') > '_', ts_quantile(ts_zscore(-ts_zscore(subtract(_, vec_avg(_)), '_'), '_'), '_'), -'_'), _)",
+        "expression": "group_neutralize(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > 0, ts_quantile(ts_zscore(-ts_zscore(subtract(second_month_highest_strike_price, vec_avg(ern4_60dorhv)), 10), 180), 180), -1), INDUSTRY)"
+      },
+      {
+        "size": 6,
+        "alpha_id": "QPQO7pw5",
+        "fitness": -0.02732516264957548,
+        "sharpe": 2.07,
+        "archetype": "group_neutralize(trade_when(ts_zscore(_, '_') > '_', ts_mean(trade_when(ts_backfill(_, '_') > '_', trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(rank(_), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), '_'), -'_'), _)",
+        "expression": "group_neutralize(trade_when(ts_zscore(ten_day_intraday_historical_volatility, 60) > 0, ts_mean(trade_when(ts_backfill(put_call_slope_28d, 180) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(rank(sixth_historical_announcement_effect), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), 5), -1), INDUSTRY)"
+      },
+      {
+        "size": 4,
+        "alpha_id": "KPLVJbnN",
+        "fitness": -0.027976104240041644,
+        "sharpe": 1.55,
+        "archetype": "group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(add(_, subtract(_, vec_avg(_))) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), _)",
+        "expression": "group_neutralize(trade_when(ts_zscore(put_call_slope_28d, 60) > 0, trade_when(add(ninety_day_interpolated_implied_volatility, subtract(eleventh_event_option_effect_2, vec_avg(ern4_120dclshvxern))) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), INDUSTRY)"
+      },
+      {
+        "size": 2,
+        "alpha_id": "bl9r2Wx6",
+        "fitness": -0.0243054635820533,
+        "sharpe": 2.22,
+        "archetype": "group_neutralize(trade_when(ts_zscore(subtract(subtract(_, _), vec_avg(_)), '_') > '_', trade_when(ts_zscore(_, '_') > normalize(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), _)",
+        "expression": "group_neutralize(trade_when(ts_zscore(subtract(subtract(put_call_slope_28d, sixty_day_interpolated_implied_volatility), vec_avg(ern4_fcsterneffct)), 120) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > normalize(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), INDUSTRY)"
+      },
+      {
+        "size": 1,
+        "alpha_id": "mLX5bAZE",
+        "fitness": -0.012032827136564247,
+        "sharpe": 1.34,
+        "archetype": "group_neutralize(ts_decay_linear(trade_when(ts_zscore(_, '_') > group_neutralize(rank(ts_rank(_, '_')), _), ts_zscore(winsorize(ts_rank(_, '_')), '_'), -'_'), '_'), _)",
+        "expression": "group_neutralize(ts_decay_linear(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 60) > group_neutralize(rank(ts_rank(ninety_day_interpolated_implied_volatility, 60)), MARKET), ts_zscore(winsorize(ts_rank(ninety_day_interpolated_implied_volatility, 60)), 252), -1), 10), INDUSTRY)"
+      },
+      {
+        "size": 1,
+        "alpha_id": "3qAp9nnO",
+        "fitness": -0.01886610913348148,
+        "sharpe": 1.42,
+        "archetype": "group_neutralize(ts_rank(-trade_when(ts_zscore(_, '_') > '_', ts_zscore(subtract(_, vec_avg(_)), '_'), -'_'), '_'), _)",
+        "expression": "group_neutralize(ts_rank(-trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 60) > 0, ts_zscore(subtract(second_month_highest_strike_price, vec_avg(ern4_60dorhv)), 10), -1), 60), INDUSTRY)"
+      },
+      {
+        "size": 1,
+        "alpha_id": "O09rNZvY",
+        "fitness": -0.025695893717898072,
+        "sharpe": 1.46,
+        "archetype": "group_neutralize(trade_when(group_neutralize(rank(ts_rank(_, '_')), _) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(add(_, _), _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(_, '_')), '_'), -'_'), _)",
+        "expression": "group_neutralize(trade_when(group_neutralize(rank(ts_rank(ninety_day_interpolated_implied_volatility, 60)), MARKET) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(add(announcement_effect_8, ninety_day_interpolated_implied_volatility), eleventh_event_option_effect_2), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(ninety_day_interpolated_implied_volatility, 60)), 180), -5), INDUSTRY)"
+      },
+      {
+        "size": 1,
+        "alpha_id": "e7rbGw3g",
+        "fitness": -0.02857355961020112,
+        "sharpe": 1.73,
+        "archetype": "group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), -'_'), _)",
+        "expression": "group_neutralize(trade_when(ts_zscore(high_strike_month1, 120) > 0, trade_when(ts_zscore(put_call_slope_28d, 60) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -5), -1), INDUSTRY)"
+      },
+      {
+        "size": 1,
+        "alpha_id": "ZYoa22Ax",
+        "fitness": -0.023514758575998693,
+        "sharpe": 1.91,
+        "archetype": "group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), -'_'), _)",
+        "expression": "group_neutralize(trade_when(ts_zscore(eighth_event_straddle_price_percent_of_equity, 180) > 0, trade_when(ts_zscore(put_call_slope_28d, 180) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), -1), INDUSTRY)"
+      },
+      {
+        "size": 1,
+        "alpha_id": "npWanJ6M",
+        "fitness": -0.021564956337762373,
+        "sharpe": 1.98,
+        "archetype": "group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), -'_'), _)",
+        "expression": "group_neutralize(trade_when(ts_zscore(seventh_historical_announcement_effect, 252) > 0, trade_when(ts_zscore(put_call_slope_28d, 120) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -5), -1), INDUSTRY)"
+      }
+    ]
+  },
+  "statistical": {
+    "n_trials_true": 2432,
+    "n_trials_capped": 1000,
+    "var_trials_per_period": 0.004187241601199665,
+    "n_scored": 2432,
+    "dsr_survivors_capped_N": 0,
+    "dsr_survivors_true_N": 0,
+    "dsr_survival_rate_true_N": 0.0,
+    "top_alphas_by_dsr": [
+      {
+        "alpha_id": "0m8GdGAp",
+        "sharpe": 2.61,
+        "fitness": null,
+        "dsr_true_N": 1.066963641415541,
+        "min_trl_years": null
+      },
+      {
+        "alpha_id": "O09zWZpp",
+        "sharpe": 3.33,
+        "fitness": 0.17970966941540692,
+        "dsr_true_N": 0.9191677676304737,
+        "min_trl_years": null
+      },
+      {
+        "alpha_id": "O09zXJwv",
+        "sharpe": 3.32,
+        "fitness": 0.16243394342894327,
+        "dsr_true_N": 0.891635260683208,
+        "min_trl_years": null
+      },
+      {
+        "alpha_id": "MPxee7p6",
+        "sharpe": 3.31,
+        "fitness": 0.18497111511506947,
+        "dsr_true_N": 0.866451740157431,
+        "min_trl_years": null
+      },
+      {
+        "alpha_id": "3qAPoRkO",
+        "sharpe": 3.31,
+        "fitness": 0.15779994913465642,
+        "dsr_true_N": 0.866451740157431,
+        "min_trl_years": null
+      },
+      {
+        "alpha_id": "xAnGvA1J",
+        "sharpe": 3.31,
+        "fitness": 0.15821249471247012,
+        "dsr_true_N": 0.866451740157431,
+        "min_trl_years": null
+      },
+      {
+        "alpha_id": "78dmd7j5",
+        "sharpe": 3.28,
+        "fitness": 0.11193726684292127,
+        "dsr_true_N": 0.7869678477587724,
+        "min_trl_years": null
+      },
+      {
+        "alpha_id": "wpeGNYw1",
+        "sharpe": 3.28,
+        "fitness": 0.11865557743928085,
+        "dsr_true_N": 0.7869678477587724,
+        "min_trl_years": null
+      },
+      {
+        "alpha_id": "mLX7KmP6",
+        "sharpe": 3.28,
+        "fitness": 0.11691265870959416,
+        "dsr_true_N": 0.7869678477587724,
+        "min_trl_years": null
+      },
+      {
+        "alpha_id": "ZYozg608",
+        "sharpe": 3.28,
+        "fitness": 0.11691265870959416,
+        "dsr_true_N": 0.7869678477587724,
+        "min_trl_years": null
+      }
+    ],
+    "oos_sharpe_present": 0,
+    "oos_gap_flag": true,
+    "pbo": 0.2857142857142857
+  },
+  "cscv": {
+    "available": true,
+    "pbo": 0.2857142857142857,
+    "n_partitions": 252,
+    "blocks": 10,
+    "median_logit": 0.8690522750633252
+  },
+  "search": {
+    "generations_present": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "per_generation": [
+      {
+        "generation": 0,
+        "n": 692,
+        "operator_entropy_norm": 0.5564421887244655,
+        "effective_family_count": 1.9447365565409545,
+        "best_sharpe": 2.13,
+        "median_sharpe": 0.39,
+        "best_fitness": 0.4038553313989878,
+        "median_fitness": -0.0101666509301685,
+        "winner_base_rate": 0.15173410404624277,
+        "distinct_skeletons": 321
+      },
+      {
+        "generation": 1,
+        "n": 306,
+        "operator_entropy_norm": 0.5716525382132509,
+        "effective_family_count": 1.5373133372813266,
+        "best_sharpe": 2.22,
+        "median_sharpe": 1.28,
+        "best_fitness": 0.15252666973034124,
+        "median_fitness": -0.014681163360998464,
+        "winner_base_rate": 0.5294117647058824,
+        "distinct_skeletons": 213
+      },
+      {
+        "generation": 2,
+        "n": 339,
+        "operator_entropy_norm": 0.5737307051635843,
+        "effective_family_count": 1.5043106644550688,
+        "best_sharpe": 2.58,
+        "median_sharpe": 1.27,
+        "best_fitness": 0.24530908560126322,
+        "median_fitness": -0.015999929319390732,
+        "winner_base_rate": 0.5014749262536873,
+        "distinct_skeletons": 239
+      },
+      {
+        "generation": 3,
+        "n": 467,
+        "operator_entropy_norm": 0.5651384378356172,
+        "effective_family_count": 1.5042767159138146,
+        "best_sharpe": 3.12,
+        "median_sharpe": 1.62,
+        "best_fitness": 0.3523108347370643,
+        "median_fitness": -0.013953416045670783,
+        "winner_base_rate": 0.6488222698072805,
+        "distinct_skeletons": 342
+      },
+      {
+        "generation": 4,
+        "n": 515,
+        "operator_entropy_norm": 0.5642502078867259,
+        "effective_family_count": 1.3547411016093402,
+        "best_sharpe": 3.31,
+        "median_sharpe": 1.95,
+        "best_fitness": 0.281061066102992,
+        "median_fitness": -0.026000000000000002,
+        "winner_base_rate": 0.7145631067961165,
+        "distinct_skeletons": 355
+      },
+      {
+        "generation": 5,
+        "n": 113,
+        "operator_entropy_norm": 0.5582406251343981,
+        "effective_family_count": 1.444321309619172,
+        "best_sharpe": 3.33,
+        "median_sharpe": 2.32,
+        "best_fitness": 0.17970966941540692,
+        "median_fitness": -0.015090862482121662,
+        "winner_base_rate": 0.7699115044247787,
+        "distinct_skeletons": 92
+      }
+    ],
+    "best_fitness_lift_vs_seed": -0.2241456619835809,
+    "structural_duplicate_rate": 0.10526315789473684,
+    "lineage": {
+      "lineage_concentration": "NOT COMPUTABLE: no parent_id recorded. Add a parent_id TEXT column (written at offspring creation) to enable it.",
+      "mutation_productivity": "NOT COMPUTABLE: needs parent_id + mutation_type. Add both (written at offspring creation) to measure which mutations beat their parent.",
+      "origin_survival": "NOT COMPUTABLE: no origin/source tag. Add an origin TEXT column (seed / reseed / ga / negation / refine / universe_sweep) to track reseed survival."
+    }
+  },
+  "grinold": {
+    "effective_breadth": 12.082220092785283,
+    "ir_ceiling_by_ic": {
+      "0.02": 0.06951897609368332,
+      "0.03": 0.10427846414052498,
+      "0.05": 0.17379744023420832
+    }
+  },
+  "scorecard": {
+    "rows": [
+      [
+        "Operator diversity",
+        "normalized operator entropy",
+        "> 0.6",
+        0.584,
+        97.3
+      ],
+      [
+        "Field diversity",
+        "effective field count (1/HHI)",
+        "> 8",
+        7.93,
+        99.1
+      ],
+      [
+        "Neutralization diversity",
+        "max single-neut share",
+        "< 0.5",
+        0.932,
+        13.6
+      ],
+      [
+        "Behavioral independence",
+        "denoised ENB / #alphas",
+        "> 0.3",
+        0.021,
+        7.0
+      ],
+      [
+        "Statistical validity",
+        "PBO (prob. backtest overfit)",
+        "< 0.3",
+        0.286,
+        100.0
+      ],
+      [
+        "Search effectiveness",
+        "evolved vs best-seed fitness lift",
+        "> 0",
+        -0.2241,
+        0.0
+      ]
+    ],
+    "overall": 52.8,
+    "vanity_ratio_alphas_per_bet": 47.3
+  }
+}

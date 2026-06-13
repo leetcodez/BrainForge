@@ -10,12 +10,21 @@ logger = logging.getLogger(__name__)
 
 # Concrete field -> its data group, used to abstract expressions into structural
 # MOTIFS (fields collapsed to their group, constants to a generic token).
+_FIELD_TO_GROUP = {}
+for _g, _fs in config.FIELD_GROUPS.items():
+    for _f in _fs:
+        _FIELD_TO_GROUP[_f] = _g
+
+
 def _get_field_to_group():
-    field_to_group = {}
-    for _g, _fs in config.FIELD_GROUPS.items():
-        for _f in _fs:
-            field_to_group[_f] = _g
-    return field_to_group
+    """Concrete-field -> data-group lookup used by structural_motifs() to abstract
+    expressions into MOTIFS (fields collapsed to their group). Returns the
+    module-level map built from config.FIELD_GROUPS at import time -- after any
+    dataset-scoped harvest swap has already finalized FIELD_GROUPS, so the map is
+    correct for both broad and dataset-scoped runs. Exposed as a function because
+    structural_motifs() calls _get_field_to_group(); without this definition every
+    motif / originality / FSA-avoidance call raised NameError."""
+    return _FIELD_TO_GROUP
 
 
 class AlphaSyntaxValidator(ast.NodeVisitor):

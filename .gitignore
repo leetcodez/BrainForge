@@ -29,3 +29,5 @@ digest.txt
 .wq_checkpoint.*
 .vscode/
 Brain/
+.wq_session.json
+diagnostics_history.db
