@@ -1,0 +1,213 @@
+{
+ "total_selected": 12,
+ "target_size": 20,
+ "unfilled_seats": 8,
+ "breakdown": {
+  "verified_core_count": 8,
+  "exploration_reserve_count": 4,
+  "unattributed_in_exploration": 4
+ },
+ "selected_members": [
+  {
+   "slot": 1,
+   "alpha_id": "0m8RdJbv",
+   "classification": "verified",
+   "has_pnl": true,
+   "datasets": [
+    "earnings4"
+   ],
+   "is_dataset_unattributed": false,
+   "expression": "group_neutralize(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), INDUSTRY)",
+   "fitness": 0.3523108347370643,
+   "sharpe": 2.96,
+   "turnover": 0.3912,
+   "is_qualified_legacy": 1,
+   "residual_fraction": 1.0,
+   "raw_subspace_fraction": 1.0
+  },
+  {
+   "slot": 2,
+   "alpha_id": "RRr76jw1",
+   "classification": "verified",
+   "has_pnl": true,
+   "datasets": [
+    "earnings4"
+   ],
+   "is_dataset_unattributed": false,
+   "expression": "group_neutralize(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(ninety_day_interpolated_implied_volatility, 60)), 180), -5), INDUSTRY)",
+   "fitness": 0.24530908560126322,
+   "sharpe": 2.58,
+   "turnover": 0.3826,
+   "is_qualified_legacy": 1,
+   "residual_fraction": 0.4786793788083109,
+   "raw_subspace_fraction": 0.4786147206656383
+  },
+  {
+   "slot": 3,
+   "alpha_id": "1YgxNRQJ",
+   "classification": "verified",
+   "has_pnl": true,
+   "datasets": [
+    "earnings4"
+   ],
+   "is_dataset_unattributed": false,
+   "expression": "group_neutralize(trade_when(ts_zscore(add(fivehundred_day_close_to_close_vol, one_thousand_day_ex_announcement_intraday_volatility_2), 60) > rank(rank(group_neutralize(zscore(ts_rank(ninety_day_interpolated_implied_volatility, 60)), MARKET))), ts_zscore(winsorize(ts_rank(ninety_day_interpolated_implied_volatility, 60)), 180), -ts_rank(add(subtract(ninety_day_interpolated_implied_volatility, month_two_straddle_strategy_price), vec_avg(ern4_impliedee)), 60)), INDUSTRY)",
+   "fitness": 0.1925164939748086,
+   "sharpe": 2.25,
+   "turnover": 0.3159,
+   "is_qualified_legacy": 1,
+   "residual_fraction": 0.38570573819441045,
+   "raw_subspace_fraction": 0.3855810541338068
+  },
+  {
+   "slot": 4,
+   "alpha_id": "RRre169e",
+   "classification": "verified",
+   "has_pnl": true,
+   "datasets": [
+    "earnings4"
+   ],
+   "is_dataset_unattributed": false,
+   "expression": "group_neutralize(trade_when(ts_zscore(put_call_slope_28d, 60) > 0, trade_when(ts_zscore(add(fivehundred_day_close_to_close_vol, sixth_historical_straddle_price_percent), 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), INDUSTRY)",
+   "fitness": 0.18614723554423382,
+   "sharpe": 2.87,
+   "turnover": 0.2381,
+   "is_qualified_legacy": 1,
+   "residual_fraction": 0.4178840627342656,
+   "raw_subspace_fraction": 0.41774039235167915
+  },
+  {
+   "slot": 5,
+   "alpha_id": "MPxee7p6",
+   "classification": "verified",
+   "has_pnl": true,
+   "datasets": [
+    "earnings4"
+   ],
+   "is_dataset_unattributed": false,
+   "expression": "group_neutralize(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), group_neutralize(trade_when(ts_zscore(put_call_slope_28d, 120) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > normalize(zscore(group_neutralize(rank(ts_rank(add(add(add(eleventh_event_option_effect_2, onehundredtwenty_day_close_to_close_vol), ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), INDUSTRY), -5), INDUSTRY)",
+   "fitness": 0.18497111511506947,
+   "sharpe": 3.31,
+   "turnover": 0.2165,
+   "is_qualified_legacy": 1,
+   "residual_fraction": 0.31289668441244667,
+   "raw_subspace_fraction": 0.31284404763785983
+  },
+  {
+   "slot": 6,
+   "alpha_id": "9qRlRqVx",
+   "classification": "verified",
+   "has_pnl": true,
+   "datasets": [
+    "earnings4"
+   ],
+   "is_dataset_unattributed": false,
+   "expression": "group_neutralize(trade_when(ts_zscore(vec_avg(ern4_5dorhvxern), 180) > 0, trade_when(ts_zscore(put_call_slope_28d, 120) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), -1), INDUSTRY)",
+   "fitness": 0.13679969651739213,
+   "sharpe": 2.9,
+   "turnover": 0.1316,
+   "is_qualified_legacy": 1,
+   "residual_fraction": 0.32782106522932486,
+   "raw_subspace_fraction": 0.3277642922421769
+  },
+  {
+   "slot": 7,
+   "alpha_id": "gJ3rXM1O",
+   "classification": "verified",
+   "has_pnl": true,
+   "datasets": [
+    "earnings4"
+   ],
+   "is_dataset_unattributed": false,
+   "expression": "group_neutralize(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -rank(tenth_historical_straddle_price_percent)), INDUSTRY)",
+   "fitness": 0.13356627978927915,
+   "sharpe": 2.86,
+   "turnover": 0.0886,
+   "is_qualified_legacy": 1,
+   "residual_fraction": 0.275178721454411,
+   "raw_subspace_fraction": 0.27514725329633105
+  },
+  {
+   "slot": 8,
+   "alpha_id": "gJ3QexdQ",
+   "classification": "verified",
+   "has_pnl": true,
+   "datasets": [
+    "earnings4"
+   ],
+   "is_dataset_unattributed": false,
+   "expression": "group_neutralize(trade_when(ts_zscore(add(add(one_thousand_day_ex_announcement_intraday_volatility_2, weeks_until_next_announcement), fivehundred_day_close_to_close_vol), 60) > rank(rank(group_neutralize(zscore(ts_rank(ninety_day_interpolated_implied_volatility, 60)), MARKET))), ts_zscore(winsorize(ts_rank(ninety_day_interpolated_implied_volatility, 60)), 180), -ts_rank(add(ninety_day_interpolated_implied_volatility, vec_avg(ern4_impliedee)), 60)), INDUSTRY)",
+   "fitness": 0.11929802150456736,
+   "sharpe": 2.12,
+   "turnover": 0.2853,
+   "is_qualified_legacy": 1,
+   "residual_fraction": 0.5153239763639992,
+   "raw_subspace_fraction": 0.5152420596487522
+  },
+  {
+   "slot": 9,
+   "alpha_id": "O097qPWJ",
+   "classification": "exploration",
+   "has_pnl": false,
+   "datasets": [],
+   "is_dataset_unattributed": true,
+   "expression": "group_neutralize(-1, SECTOR)",
+   "fitness": -0.008,
+   "sharpe": 0.0,
+   "turnover": 0.0,
+   "is_qualified_legacy": 0,
+   "residual_fraction": null,
+   "raw_subspace_fraction": null
+  },
+  {
+   "slot": 10,
+   "alpha_id": "P01PAnKM",
+   "classification": "exploration",
+   "has_pnl": false,
+   "datasets": [],
+   "is_dataset_unattributed": true,
+   "expression": "group_neutralize(-1, INDUSTRY)",
+   "fitness": -0.008,
+   "sharpe": 0.0,
+   "turnover": 0.0,
+   "is_qualified_legacy": 0,
+   "residual_fraction": null,
+   "raw_subspace_fraction": null
+  },
+  {
+   "slot": 11,
+   "alpha_id": "QPQ7lQrp",
+   "classification": "exploration",
+   "has_pnl": false,
+   "datasets": [],
+   "is_dataset_unattributed": true,
+   "expression": "group_neutralize(-5, SUBINDUSTRY)",
+   "fitness": -0.008,
+   "sharpe": 0.0,
+   "turnover": 0.0,
+   "is_qualified_legacy": 0,
+   "residual_fraction": null,
+   "raw_subspace_fraction": null
+  },
+  {
+   "slot": 12,
+   "alpha_id": "88LGYqv7",
+   "classification": "exploration",
+   "has_pnl": false,
+   "datasets": [],
+   "is_dataset_unattributed": true,
+   "expression": "group_neutralize(scale(-1), INDUSTRY)",
+   "fitness": -0.01,
+   "sharpe": 0.0,
+   "turnover": 0.0,
+   "is_qualified_legacy": 0,
+   "residual_fraction": null,
+   "raw_subspace_fraction": null
+  }
+ ],
+ "rejection_counts": {
+  "absolute_return_redundancy": 71,
+  "dataset_budget": 428
+ },
+ "mechanistic_cause_of_12_member_truncation": "1. Core allocation capped at 8: size=20 with max_dataset_fraction=0.4 imposes a ceiling of ceil(20*0.4) = 8 candidates for any dataset family. All qualified candidates belong to earnings4. Upon admitting the 8th candidate, earnings4 budget was saturated, causing 428 subsequent candidates to be rejected for dataset_budget.\n2. Exploration reserve capped at 4: explore_fraction=0.2 on size=20 allows at most ceil(20*0.2) = 4 exploration candidates.\n3. Unattributed bypass: In the exploration loop, candidates with earnings4 fields were blocked by the saturated family cap. However, 4 candidates with constant expressions (e.g. group_neutralize(-1, SECTOR)) had no field tokens in metadata (datasets=[]), bypassing the family cap. None of these had recorded PnL.\n4. Basket starvation: Exactly 8 verified core + 4 exploration candidates were admitted. The remaining 8 seats to reach 20 could not be filled because no candidates from other datasets exist in the archive, and exploration had reached its 4-seat cap."
+}
