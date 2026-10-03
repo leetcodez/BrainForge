@@ -1,0 +1,239 @@
+{
+ "pool": {
+  "total_scored_TOP3000": 1857,
+  "unique_expressions": 1747,
+  "exact_duplicates_removed": 110,
+  "with_recorded_pnl": 571,
+  "pnl_coverage_fraction": 0.3075,
+  "provenance_note": "region=USA and delay=1 are migration assumptions from legacy config.py DEFAULT_REGION/DEFAULT_DELAY; no original run log confirms these were the submitted values"
+ },
+ "basket_size": 20,
+ "ablation_variants": {
+  "A_no_controls": {
+   "description": "Raw fitness ranking, top-20, no deduplication or basket controls",
+   "selected_count": 20,
+   "selected_ids": [
+    "bl9qmWaZ",
+    "0m8RdJbv",
+    "2rKOW2X8",
+    "wpeEzOkQ",
+    "kqKZ1mJg",
+    "O09xrqxJ",
+    "N1ORjLEg",
+    "Vk8MZ70M",
+    "O09x78xb",
+    "xAnYW6Qb",
+    "1Ygzm0Ym",
+    "npW8KOn8",
+    "RRr76jw1",
+    "O0978ldY",
+    "3qAexxq0",
+    "omYgvdZJ",
+    "QPQbNpKK",
+    "d5QOvL2E",
+    "pw7WR3dx",
+    "58vQeaVX"
+   ],
+   "datasets_in_selection": [
+    "earnings4"
+   ],
+   "pnl_covered_in_selection": 10,
+   "pairwise_correlation": {
+    "pairs": 45,
+    "with_pnl": 10,
+    "common_dates": 1234,
+    "mean_abs_corr": 0.7961870856756704,
+    "median_abs_corr": 0.8053386869857937,
+    "max_abs_corr": 1.0,
+    "above_0.8": 26,
+    "above_0.9": 9,
+    "above_0.99": 2
+   },
+   "rejection_summary": {}
+  },
+  "B_dedup_only": {
+   "description": "Expression deduplication (keep highest fitness per expression), then top-20",
+   "selected_count": 20,
+   "selected_ids": [
+    "bl9qmWaZ",
+    "0m8RdJbv",
+    "2rKOW2X8",
+    "wpeEzOkQ",
+    "kqKZ1mJg",
+    "O09xrqxJ",
+    "N1ORjLEg",
+    "Vk8MZ70M",
+    "O09x78xb",
+    "xAnYW6Qb",
+    "1Ygzm0Ym",
+    "npW8KOn8",
+    "RRr76jw1",
+    "O0978ldY",
+    "3qAexxq0",
+    "omYgvdZJ",
+    "QPQbNpKK",
+    "d5QOvL2E",
+    "pw7WR3dx",
+    "58vQeaVX"
+   ],
+   "datasets_in_selection": [
+    "earnings4"
+   ],
+   "pnl_covered_in_selection": 10,
+   "pairwise_correlation": {
+    "pairs": 45,
+    "with_pnl": 10,
+    "common_dates": 1234,
+    "mean_abs_corr": 0.7961870856756704,
+    "median_abs_corr": 0.8053386869857937,
+    "max_abs_corr": 1.0,
+    "above_0.8": 26,
+    "above_0.9": 9,
+    "above_0.99": 2
+   },
+   "rejection_summary": {}
+  },
+  "C_pnl_controls_no_cap": {
+   "description": "Full PnL correlation + residual controls, dataset cap DISABLED (max_dataset_fraction=1.0)",
+   "selected_count": 20,
+   "selected_ids": [
+    "0m8RdJbv",
+    "RRr76jw1",
+    "1YgxNRQJ",
+    "RRre169e",
+    "MPxee7p6",
+    "9qRlRqVx",
+    "gJ3rXM1O",
+    "gJ3QexdQ",
+    "Vk8GE395",
+    "N1OaVl5L",
+    "QPQ70gmQ",
+    "xAn2wmOn",
+    "d5Qa0Ojv",
+    "GroQLOKP",
+    "3qAGpdoO",
+    "bl9zmmlm",
+    "bl9qmWaZ",
+    "wpeEzOkQ",
+    "kqKZ1mJg",
+    "O09xrqxJ"
+   ],
+   "verified_count": 16,
+   "exploration_count": 4,
+   "datasets_in_selection": [
+    "earnings4"
+   ],
+   "pnl_covered_in_selection": 16,
+   "common_intervals": 1234,
+   "shrinkage": 0.011135088258810774,
+   "pairwise_correlation": {
+    "pairs": 120,
+    "with_pnl": 16,
+    "common_dates": 1234,
+    "mean_abs_corr": 0.5961970823052412,
+    "median_abs_corr": 0.5952296122372144,
+    "max_abs_corr": 0.7943823945689971,
+    "above_0.8": 0,
+    "above_0.9": 0,
+    "above_0.99": 0
+   },
+   "rejection_summary": {
+    "absolute_return_redundancy": 129
+   },
+   "basket_reason": "measured_core_plus_explicit_exploration",
+   "dataset_counts": {
+    "earnings4": 20
+   }
+  },
+  "D_pnl_controls_with_cap": {
+   "description": "Full PnL correlation + residual controls, dataset cap ACTIVE (max_dataset_fraction=0.4, 8 max from earnings4)",
+   "selected_count": 12,
+   "selected_ids": [
+    "0m8RdJbv",
+    "RRr76jw1",
+    "1YgxNRQJ",
+    "RRre169e",
+    "MPxee7p6",
+    "9qRlRqVx",
+    "gJ3rXM1O",
+    "gJ3QexdQ",
+    "O097qPWJ",
+    "P01PAnKM",
+    "QPQ7lQrp",
+    "88LGYqv7"
+   ],
+   "verified_count": 8,
+   "exploration_count": 4,
+   "datasets_in_selection": [
+    "earnings4"
+   ],
+   "pnl_covered_in_selection": 8,
+   "common_intervals": 1234,
+   "shrinkage": 0.011135088258810774,
+   "pairwise_correlation": {
+    "pairs": 28,
+    "with_pnl": 8,
+    "common_dates": 1234,
+    "mean_abs_corr": 0.6247822017406144,
+    "median_abs_corr": 0.6516327915386153,
+    "max_abs_corr": 0.7943823945689971,
+    "above_0.8": 0,
+    "above_0.9": 0,
+    "above_0.99": 0
+   },
+   "rejection_summary": {
+    "absolute_return_redundancy": 71,
+    "dataset_budget": 428
+   },
+   "basket_reason": "measured_core_plus_explicit_exploration",
+   "dataset_counts": {
+    "earnings4": 8
+   }
+  }
+ },
+ "cross_comparison": {
+  "A_and_B_overlap": 20,
+  "A_and_C_overlap": 6,
+  "A_and_D_overlap": 2,
+  "B_and_C_overlap": 6,
+  "B_and_D_overlap": 2,
+  "C_and_D_overlap": 8,
+  "C_minus_D": [
+   "3qAGpdoO",
+   "GroQLOKP",
+   "N1OaVl5L",
+   "O09xrqxJ",
+   "QPQ70gmQ",
+   "Vk8GE395",
+   "bl9qmWaZ",
+   "bl9zmmlm",
+   "d5Qa0Ojv",
+   "kqKZ1mJg",
+   "wpeEzOkQ",
+   "xAn2wmOn"
+  ],
+  "C_minus_D_count": 12,
+  "D_minus_C": [
+   "88LGYqv7",
+   "O097qPWJ",
+   "P01PAnKM",
+   "QPQ7lQrp"
+  ],
+  "D_minus_C_count": 4,
+  "key_question": "If C_minus_D is large (candidates accepted by correlation/residual controls but rejected by dataset cap), the cap is the binding constraint, not PnL redundancy"
+ },
+ "warmstart_assessment": {
+  "assessed": false
+ },
+ "missing_evidence": {
+  "total_scored": 1857,
+  "with_pnl": 571,
+  "without_pnl": 1286,
+  "pnl_coverage_percent": 30.7,
+  "median_fitness_pnl_covered": 0.002656193057841226,
+  "median_fitness_all": -0.014653884202497466,
+  "pnl_collection_correlation_with_is_qualified": "All 572 qualified rows have PnL; 0 non-qualified rows have PnL",
+  "bias_risk": "PnL was collected only for candidates that passed a qualification gate (is_qualified=1). The PnL-covered subset is a biased sample of the full search. Basket correlation/redundancy analysis applies only to this subset and cannot characterize unseen candidates.",
+  "recorded_trial_limitation": "1857 scored rows in the database. This is NOT the total number of attempted simulations; failed simulations, duplicates rejected pre-submission, and manual experiments are not tracked. DSR penalties computed on this count underestimate the true multiple-testing burden."
+ }
+}
