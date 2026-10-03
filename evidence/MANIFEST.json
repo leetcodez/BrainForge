@@ -1,0 +1,241 @@
+{
+  "release": "BrainForge v2 \u2014 lead-quant generator upgrade",
+  "date": "2026-10-02",
+  "delivery": "Local source overlay; not committed or deployed",
+  "network_platform_calls": 0,
+  "source_sha256": {
+    "config.py": "1b40fa73d5f95a40a2bb269d05ec8215a24b86f44ef9e0e4fc0a67556d5bfb91",
+    "db_manager.py": "ce98d298cffb86de36a266a4bba6e984a145576b9a93b3a734841cf28260e24f",
+    "decorrelation_selector.py": "a5193bb75489664c27a0b44d4edd850fc6d0ede0280dbc640886d00195bb791a",
+    "forge2_bandit.py": "64289351d69305fac2dae239ce4bf0415032ecf6810bc8606ba07757035bf433",
+    "forge2_build_catalog.py": "c27d8bcdaffe54ffcecd868db12773d84ed0ba70f46a9afc1b5c7148dd674795",
+    "forge2_campaign.py": "244c9f640d9f1015dedcb46799c9411dbe5699c6c9c7a027354e3a8e53689ad7",
+    "forge2_catalog.py": "972175f74ad289b9ddd87e28e76253ad2d2c8d0ad869b21bc84616480e1e2eb8",
+    "forge2_checks.py": "a4c090cc527ba17788358722b9c47f21ebafcb4b53041c30f430c11cf4dc46e1",
+    "forge2_config.py": "b3cedb968f3914323263749031474e5e27826cf84b6137cf672121c065a241e3",
+    "forge2_cscv.py": "a73a064c3c76e0240ef26ecb3ba0804844e71f06ec673021fe1b51bf703dd16d",
+    "forge2_experiments.py": "f3047201c2f53c999de6886ecf6dc559a600236d0dc88ab513f67f68fbc4924e",
+    "forge2_expression.py": "215dca7485159ce9e5be3b0c82cc02e5dd49191088b89bedef2808405d093ebe",
+    "forge2_factory.py": "5631bc1e65e1213df08b3197fd1ec9055da9b68cb5a411c538b21a0d95108eef",
+    "forge2_inference.py": "bbb39ae265f87ae59f8047e9396ceb1bd1250f48c47f16a6a056caeb2890d357",
+    "forge2_migrate_offline.py": "cbcc033af0d5c6ad7eb8d09464b244da3f7f8efa7a70575a5d789b7c01e57973",
+    "forge2_offline_review.py": "3d0a7f465e1fa88907c2a9d50fa41abb954a5e8acbd0eb42cd846a96ba55c526",
+    "forge2_policy.py": "399b33b387cdea609a806b8f83d122ca68066af2049fe55503c73ee9e7c707b3",
+    "forge2_portfolio.py": "29a4563c9645603176899c01a360667fe88b476cad0c569a793bc7ff889c1fc0",
+    "forge2_protocol.py": "ee3e1a045e6f6593f52fb96dd8959a5fb03ae761d2c2a7a1c02fdd4d85e66435",
+    "forge2_quant_review.py": "e455836982dfdbeb5af9077f5f7a7d667a062b65846300ed4b5d59817bde487b",
+    "forge2_queue.py": "95d944612433f84efb333f85f857be5cdd2e8c92425eb1b1fd6e007c0cd5f916",
+    "forge2_search.py": "e84d1d813e3c005075427ad720ef3532ffce591836d74fb209e83a25197f84d6",
+    "forge2_smoke_test.py": "5e9179dd99dcc63f15b8aac26e2654d589bd4386b615949e31646b11988e4249",
+    "forge2_statistics.py": "2bd49f66f1b2587830a21691bb1bde608fa8a3a1f194298156dcf84a0ac8c763",
+    "forge2_storage.py": "b6442c88d99530def65726343b97432544266218a87cef26434b93ac5ce48e26",
+    "forge2_trials.py": "a0a1f5548e4e753b138c8d5fceaaa9e775f76a9e405d64d6e06e6d72df424d0c",
+    "forge2_vocabulary.py": "5ef7444ed58066c7ae85f1c4448190588402fe752f456b18265fb3cb6d1d9ea0",
+    "llm_seed_generator.py": "12491f6c89fddda96226a16829fa00ae78bff4ea6cfde6290093a90520f93391",
+    "network_engine.py": "8f4e6ebc2cf4fa88d5e13e23f4373aec1534fba22788c0e402964a7da919515e",
+    "oos_deflation.py": "f555356826a2cffcbe9fc11ad8a69d86fd6413fbf5f9359ddd96ab26533a79cc",
+    "orchestrator.py": "afa6a8621bac5c0ed8335099753bd40bf676949eb08042bbd7af55fe5cf74f84",
+    "run_diagnostics.py": "b1ce3d3b27fb3252a696854b6b83f88f259753ed6b7a8eab194319602bb0c56e",
+    "submission_scout.py": "f038589dca62bd4162b80976674cf96212f85b61bd395d7b974cb6fdc0b58936",
+    "submit_to_worldquant.py": "a5c40d3ae74617b9b7ef4ab268c6a7c5ad8cbd3931ecb94be1afe77ee62760c7",
+    "surrogate_prescreener.py": "8bd64f07a79afcf3ee7b68097558e418357b10787b9c18955131b72627f9ff3a",
+    "syntax_validator.py": "9f725b57fd55882cd10130054961b306b44ca2206a173ba764eb9d5c1b901ea9"
+  },
+  "v1_baseline_sha256": {
+    "config.py": "068de79c9049bcd4c734d60f81c58cddcd011d9734224b6e9bf69edd9cd7c707",
+    "db_manager.py": "ce98d298cffb86de36a266a4bba6e984a145576b9a93b3a734841cf28260e24f",
+    "decorrelation_selector.py": "a5193bb75489664c27a0b44d4edd850fc6d0ede0280dbc640886d00195bb791a",
+    "forge2_bandit.py": "64289351d69305fac2dae239ce4bf0415032ecf6810bc8606ba07757035bf433",
+    "forge2_build_catalog.py": "c27d8bcdaffe54ffcecd868db12773d84ed0ba70f46a9afc1b5c7148dd674795",
+    "forge2_campaign.py": "244c9f640d9f1015dedcb46799c9411dbe5699c6c9c7a027354e3a8e53689ad7",
+    "forge2_catalog.py": "972175f74ad289b9ddd87e28e76253ad2d2c8d0ad869b21bc84616480e1e2eb8",
+    "forge2_checks.py": "a9a3704f4a0a273ce87cf671d70b9b1dbdec8aa7b26a0e37f5874cefe8a36a38",
+    "forge2_config.py": "1a96124226d2bbe269e62efa18c62cbcf73691a6094bdb1e2c185b375ea99670",
+    "forge2_expression.py": "215dca7485159ce9e5be3b0c82cc02e5dd49191088b89bedef2808405d093ebe",
+    "forge2_factory.py": "82e9eaa6cd07479e7c8b658d142f6d57f4b3b1825a71f7933108fd9e5b69c951",
+    "forge2_migrate_offline.py": "ad80184fae43fd1aeaad81206acd45797481f33b634b47973ca094baaa58156f",
+    "forge2_offline_review.py": "3d0a7f465e1fa88907c2a9d50fa41abb954a5e8acbd0eb42cd846a96ba55c526",
+    "forge2_policy.py": "9d2895b1c603366ef6122cc2d01118e837a39d991872d0d629a8c4be2e75d62c",
+    "forge2_queue.py": "95d944612433f84efb333f85f857be5cdd2e8c92425eb1b1fd6e007c0cd5f916",
+    "forge2_smoke_test.py": "49086da74cec0543067f93a96281241b03d4d9f2a7680f0e5ae71fee4cc409ea",
+    "forge2_statistics.py": "2bd49f66f1b2587830a21691bb1bde608fa8a3a1f194298156dcf84a0ac8c763",
+    "forge2_storage.py": "b6442c88d99530def65726343b97432544266218a87cef26434b93ac5ce48e26",
+    "forge2_trials.py": "a0a1f5548e4e753b138c8d5fceaaa9e775f76a9e405d64d6e06e6d72df424d0c",
+    "forge2_vocabulary.py": "3fbb37e00018039ea662d1ff479160e204e4935859c1ec38869b58cfa5db19d5",
+    "llm_seed_generator.py": "12491f6c89fddda96226a16829fa00ae78bff4ea6cfde6290093a90520f93391",
+    "network_engine.py": "d176bd6b987b8372787c551e6c833ac570275322297b36e62c62895e809f12b1",
+    "oos_deflation.py": "07a36185dc2e4c521fe088528a19bb4940e1650020a901816ceae1d95d27777a",
+    "orchestrator.py": "16ba012e6666088b24971bda4e8b2c200211338a4aef149097b2c055e3c8e314",
+    "run_diagnostics.py": "b1ce3d3b27fb3252a696854b6b83f88f259753ed6b7a8eab194319602bb0c56e",
+    "submission_scout.py": "b771a0fb2ff97de02e1753568f0e85e92cc6da5e400deb025dc1b85a4109bc77",
+    "submit_to_worldquant.py": "a5c40d3ae74617b9b7ef4ab268c6a7c5ad8cbd3931ecb94be1afe77ee62760c7",
+    "surrogate_prescreener.py": "8bd64f07a79afcf3ee7b68097558e418357b10787b9c18955131b72627f9ff3a",
+    "syntax_validator.py": "2f295c0a34cc7e1ae48fcd7ff1ff6c6de6ce1ae3a57f3098f9e099928aeda3f6"
+  },
+  "notion_baseline_sha256": {
+    "config.py": "8983174b14aa055b03b5714e70c46c9da4c90998595fa14fdf81f282c6a6b827",
+    "db_manager.py": "04acbcfd23851401e90d5ee7aa673c98722575a297ffebcaa23cd23feb371701",
+    "decorrelation_selector.py": "61630a2a07a7b0d61a852d20e1808881adfbfd972dfa8d3f2c01eda1d723ceb3",
+    "forge2_bandit.py": "037d9c57d756d93971e4d02fbdb59e0565882a3c6ddd4195608fb606d4449a0b",
+    "forge2_campaign.py": "6e23c61d235a33d663121faa5cdd4134cb58267dc8ed99f15a89b0b5540ea8c9",
+    "forge2_catalog.py": "0004c9c4fc8ee6b046853fc502fd472383e598121790eabdd8f2fe439d1e7d4c",
+    "forge2_config.py": "58a2f6f71d5a98ea7546b8d3f47bd3a13a0f209649358b9220f67bb93f5c819d",
+    "forge2_factory.py": "85f340859931ddb013f9dd8a408e3156ddc13f694fed4c742c72c86953cb0a60",
+    "forge2_smoke_test.py": "179cf088070ac61bd5ccac99994cfcb657a58a273d09035a6c1e37c05ed3920c",
+    "forge2_vocabulary.py": "e4865d55568e804ec99b5accabf23a11286c2e329c0d6ac161f84a566fa2023a",
+    "llm_seed_generator.py": "12491f6c89fddda96226a16829fa00ae78bff4ea6cfde6290093a90520f93391",
+    "network_engine.py": "d176bd6b987b8372787c551e6c833ac570275322297b36e62c62895e809f12b1",
+    "oos_deflation.py": "44a956e8514e90e82763d016922115711bf6b699ac92d4d72255a1393a6b9ef2",
+    "orchestrator.py": "dc25a4c8ecf541152fcb98dda72c66087ffe123e2d67a9f97cd2dcb71ffb62c4",
+    "run_diagnostics.py": "b1ce3d3b27fb3252a696854b6b83f88f259753ed6b7a8eab194319602bb0c56e",
+    "submission_scout.py": "dc8c730f23341450ce779c55e3268a23857813b7eb43bd55fcce6a862a6f5ee2",
+    "submit_to_worldquant.py": "05c528e254ecb373b35b848e0b6b4dc0e25bace64c1624ea054bf6a259f06a67",
+    "surrogate_prescreener.py": "0f7308a89e8ed6313f75117f50896328d27ca25984864988d78a1f0a2f3038d7",
+    "syntax_validator.py": "2f295c0a34cc7e1ae48fcd7ff1ff6c6de6ce1ae3a57f3098f9e099928aeda3f6"
+  },
+  "patch_validation": {
+    "v1": {
+      "apply_check": "passed",
+      "applied_python_byte_match": true,
+      "sha256": "54c9222e81c48a78a60c4f907b6da5db67d1fa2f5a649b606636ac33988f7b5d"
+    },
+    "notion": {
+      "apply_check": "passed",
+      "applied_python_byte_match": true,
+      "sha256": "fa886ae1b87cda9a0ded4df383092affade6a4736f85e7a5644af12a39889258"
+    }
+  },
+  "validation": {
+    "offline_tests": 136,
+    "genetic_outputs": 10000,
+    "invalid_genetic_outputs": 0,
+    "catalog_smoke_checks": 54,
+    "catalog_smoke_failures": 0
+  },
+  "catalog": {
+    "historical_partial": true,
+    "changed_in_v2": false,
+    "sha256": "2b84f948b5098bd0ff6a53841c7b32dab86626099525a670ace38f9d2aeb142b"
+  },
+  "prior_release_url": "https://app.notion.com/p/30e900b2367f4d4093317a95a0e16d05",
+  "coverage_experiment": {
+    "source": "synthetic stationary Gaussian AR(1), not platform or strategy-performance evidence",
+    "daily_true_sharpe": 0.05,
+    "observations_per_replication": 600,
+    "burn_in": 500,
+    "replicates_per_scenario": 200,
+    "confidence": 0.95,
+    "summary": [
+      {
+        "phi": -0.5,
+        "method": "IID",
+        "covered": 200,
+        "replicates": 200,
+        "coverage_percent": 100.0
+      },
+      {
+        "phi": -0.5,
+        "method": "HAC auto",
+        "covered": 195,
+        "replicates": 200,
+        "coverage_percent": 97.5
+      },
+      {
+        "phi": -0.5,
+        "method": "HAC 20",
+        "covered": 193,
+        "replicates": 200,
+        "coverage_percent": 96.5
+      },
+      {
+        "phi": 0.0,
+        "method": "IID",
+        "covered": 190,
+        "replicates": 200,
+        "coverage_percent": 95.0
+      },
+      {
+        "phi": 0.0,
+        "method": "HAC auto",
+        "covered": 189,
+        "replicates": 200,
+        "coverage_percent": 94.5
+      },
+      {
+        "phi": 0.0,
+        "method": "HAC 20",
+        "covered": 186,
+        "replicates": 200,
+        "coverage_percent": 93.0
+      },
+      {
+        "phi": 0.5,
+        "method": "IID",
+        "covered": 154,
+        "replicates": 200,
+        "coverage_percent": 77.0
+      },
+      {
+        "phi": 0.5,
+        "method": "HAC auto",
+        "covered": 182,
+        "replicates": 200,
+        "coverage_percent": 91.0
+      },
+      {
+        "phi": 0.5,
+        "method": "HAC 20",
+        "covered": 184,
+        "replicates": 200,
+        "coverage_percent": 92.0
+      },
+      {
+        "phi": 0.8,
+        "method": "IID",
+        "covered": 93,
+        "replicates": 200,
+        "coverage_percent": 46.5
+      },
+      {
+        "phi": 0.8,
+        "method": "HAC auto",
+        "covered": 158,
+        "replicates": 200,
+        "coverage_percent": 79.0
+      },
+      {
+        "phi": 0.8,
+        "method": "HAC 20",
+        "covered": 179,
+        "replicates": 200,
+        "coverage_percent": 89.5
+      }
+    ],
+    "raw_file": "/data/raw/brainforge-v2/synthetic_daily_returns.csv",
+    "independent_interval_check": "passed",
+    "assumptions": [
+      "Fixed process and fixed method settings declared before generation; no model/alpha selection.",
+      "HAC auto follows the implemented bandwidth rule; 20 lags is a predeclared sensitivity, not an optimized calibration.",
+      "Coverage is the fraction of 200 simulated intervals containing the known daily Sharpe; finite Monte Carlo uncertainty remains.",
+      "This does not validate BRAIN profitability, heavy-tail/regime robustness, or selection-adjusted inference."
+    ],
+    "comparison_plan": [
+      {
+        "grain": "method x AR coefficient",
+        "population": "200 complete independent synthetic paths per coefficient",
+        "unit": "percent interval coverage",
+        "derivation": "covered / complete replications * 100",
+        "finding": "Serial dependence exposes finite-sample bandwidth and IID-assumption limits.",
+        "disposition": "chart",
+        "reason": "Grouped coverage rates reveal different uncertainty behavior on identical paths."
+      },
+      {
+        "grain": "individual simulation",
+        "population": "same paths",
+        "unit": "daily Sharpe CI endpoints",
+        "disposition": "file",
+        "reason": "Audit detail, not a second visual finding."
+      }
+    ]
+  }
+}

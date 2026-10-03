@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "form": "categorical-bars",
+  "layout": "report",
+  "title": "Serial dependence exposes uncertainty-model limits",
+  "aside": "Synthetic AR(1); 200 paths per case, 600 observations each. Coverage = intervals containing true daily Sharpe. Nominal 95%; not BRAIN results.",
+  "orientation": "vertical",
+  "mode": "grouped",
+  "labels": [
+    "AR \u03c6 = -0.5",
+    "AR \u03c6 = 0",
+    "AR \u03c6 = 0.5",
+    "AR \u03c6 = 0.8"
+  ],
+  "axis": {
+    "zero": true,
+    "cap": 100,
+    "referenceLine": {
+      "value": 95,
+      "label": "Nominal 95%"
+    }
+  },
+  "derived": true,
+  "derivationReason": "Intervals containing known true daily Sharpe divided by all 200 complete replications.",
+  "series": [
+    {
+      "label": "IID",
+      "valueKind": "percent",
+      "role": "base",
+      "data": [
+        100.0,
+        95.0,
+        77.0,
+        46.5
+      ]
+    },
+    {
+      "label": "HAC auto",
+      "valueKind": "percent",
+      "role": "subject",
+      "data": [
+        97.5,
+        94.5,
+        91.0,
+        79.0
+      ]
+    },
+    {
+      "label": "HAC 20",
+      "valueKind": "percent",
+      "role": "aux",
+      "data": [
+        96.5,
+        93.0,
+        92.0,
+        89.5
+      ]
+    }
+  ]
+}

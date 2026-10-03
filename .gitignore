@@ -21,6 +21,7 @@ winners.csv
 raw_data/
 
 brain_memory.db*
+brain_memory.*
 factory.log
 codex_changes.*
 digest.txt
@@ -31,3 +32,15 @@ digest.txt
 Brain/
 .wq_session.json
 diagnostics_history.db
+
+# Archives & Large Snapshots
+*.zip
+*.tar.gz
+*.tgz
+snapshot*/
+backups/
+legacy_flat/
+evidence/*.tar.gz
+evidence/*.tgz
+evidence/replay-smoke/
+

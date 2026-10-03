@@ -1,118 +1,97 @@
-# Run Diagnostics - brain_memory.earnings4_run2
-_dataset: earnings4  |  generated: 2026-06-13T08:56:05  |  scope: all_
+# Run Diagnostics - brain_memory.earnings4_run3
+_dataset: earnings4  |  generated: 2026-06-18T05:03:14  |  scope: all_
 
-DB: `brain_memory.earnings4_run2.db` | alphas analyzed: 2432 | trials (true N): 2432
+DB: `brain_memory.earnings4_run3.db` | alphas analyzed: 1415 | trials (true N): 1415
 
 ## Run Health Scorecard
 | Sub-score | Driver | Target | Value | Score (0-100) |
 |---|---|---|---|---|
-| Operator diversity | normalized operator entropy | > 0.6 | 0.584 | 97.3 |
-| Field diversity | effective field count (1/HHI) | > 8 | 7.930 | 99.1 |
-| Neutralization diversity | max single-neut share | < 0.5 | 0.932 | 13.6 |
-| Behavioral independence | denoised ENB / #alphas | > 0.3 | 0.021 | 7.0 |
-| Statistical validity | PBO (prob. backtest overfit) | < 0.3 | 0.286 | 100.0 |
-| Search effectiveness | evolved vs best-seed fitness lift | > 0 | -0.224 | 0.0 |
+| Operator diversity | normalized operator entropy | > 0.6 | 0.587 | 97.8 |
+| Field diversity | effective field count (1/HHI) | > 8 | 12.260 | 100.0 |
+| Neutralization diversity | max single-neut share | < 0.5 | 0.903 | 19.4 |
+| Behavioral independence | denoised ENB / #alphas | > 0.3 | 0.013 | 4.3 |
+| Statistical validity | PBO (prob. backtest overfit) | < 0.3 | 0.583 | 59.5 |
+| Search effectiveness | evolved vs best-seed fitness lift | > 0 | -0.939 | 0.0 |
 
-**Overall health: 52.8 / 100**
-**Vanity ratio: 47.3 qualified alphas per independent bet** (higher = more redundant headcount).
+**Overall health: 46.8 / 100**
+**Vanity ratio: 76.7 qualified alphas per independent bet** (higher = more redundant headcount).
+
+**Change vs previous run:** operator_entropy_norm +0.0, effective_field_count +0.0, max_neut_share +0.0, dsr_survival_rate_true_N +0.0, best_fitness_lift_vs_seed +0.0, overall_health -7.5
 
 ## Module 1 - Structural / monoculture
-- Operator coverage: 0.582 (39/67 ops used); normalized entropy 0.584
-- Zero-usage operators (28): abs, and, bucket, days_from_last_change, densify, equal, greater, greater_equal, group_backfill, group_mean, hump, if_else, inverse, is_nan, kth_element, less, less_equal, log, not, not_equal, or, reverse, sqrt, ts_corr, ts_covariance, ts_regression, ts_step, vector_neut
-- Neutralization style: {'group_neutralize': 2267, 'none': 94, 'group_zscore': 38, 'group_rank': 22, 'group_scale': 9, 'zscore': 2}
-- Neutralization group key: {'INDUSTRY': 1335, 'SUBINDUSTRY': 513, 'SECTOR': 317, 'MARKET': 173}
-- Effective field count (1/HHI): 7.93; effective family count: 1.48
-- Family distribution: {'options_vol': 8424, 'earnings_event': 2123, 'price_volume': 9, 'analyst': 7, 'unknown': 7}
-- Archetypes: 1484 distinct; max archetype share 0.009
+- Operator coverage: 0.567 (38/67 ops used); normalized entropy 0.587
+- Zero-usage operators (29): abs, and, bucket, days_from_last_change, densify, equal, greater, greater_equal, group_backfill, group_mean, hump, if_else, is_nan, kth_element, less, less_equal, not, not_equal, or, power, reverse, signed_power, ts_corr, ts_count_nans, ts_covariance, ts_regression, ts_step, ts_sum, vector_neut
+- Neutralization style: {'group_neutralize': 1278, 'none': 62, 'group_zscore': 50, 'group_rank': 16, 'group_scale': 9}
+- Neutralization group key: {'MARKET': 663, 'SECTOR': 543, 'INDUSTRY': 81, 'SUBINDUSTRY': 66}
+- Effective field count (1/HHI): 12.26; effective family count: 1.99
+- Family distribution: {'earnings_event': 1519, 'options_vol': 1195, 'analyst': 4, 'unknown': 4, 'price_volume': 4}
+- Archetypes: 771 distinct; max archetype share 0.019
 - Top archetypes: {
-"group_neutralize(-rank(_), _)": 23,
-"group_neutralize(-ts_zscore(_, '_'), _)": 20,
-"group_neutralize(rank(_), _)": 19,
-"group_neutralize(trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(_, '_')), '_'), -'_'), _)": 17,
-"group_neutralize(trade_when(ts_zscore(_, '_') > '_', ts_zscore(_, '_'), -'_'), _)": 16,
-"group_neutralize(trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(_, '_')), '_'), -'_')), '_')), _))), ts_zscore(winsorize(ts_rank(_, '_')), '_'), -'_'), _)": 16,
-"group_neutralize(rank(ts_rank(_, '_')), _)": 15,
-"group_neutralize(ts_zscore(_, '_'), _)": 15,
-"group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), _)": 15,
-"group_neutralize(rank(ts_zscore(vec_avg(_), '_')), _)": 14,
-"group_neutralize(ts_delta(ts_delta(_, '_'), '_'), _)": 14,
-"group_neutralize(rank(ts_zscore(_, '_')), _)": 14
+"group_neutralize(ts_decay_linear(trade_when(ts_zscore(add(_, _), '_') > '_', trade_when(ts_zscore(vec_avg(_), '_') > trade_when(ts_zscore(vec_avg(_), '_') > '_', quantile(group_neutralize(normalize(vec_avg(_)), _)), -'_'), rank(_), -'_'), -'_'), '_'), _)": 27,
+"group_neutralize(ts_zscore(_, '_'), _)": 25,
+"group_neutralize(rank(_), _)": 22,
+"group_neutralize(rank(vec_avg(_)), _)": 22,
+"group_neutralize(trade_when(ts_zscore(_, '_') > '_', ts_zscore(_, '_'), -'_'), _)": 18,
+"group_neutralize(-rank(_), _)": 17,
+"group_neutralize(-rank(ts_mean(_, '_')), _)": 16,
+"group_neutralize(ts_zscore(vec_avg(_), '_'), _)": 15,
+"group_neutralize(rank(ts_rank(_, '_')), _)": 14,
+"group_neutralize(rank(ts_zscore(vec_avg(_), '_')), _)": 13,
+"group_neutralize(ts_delta(ts_delta(_, '_'), '_'), _)": 13,
+"group_neutralize(-ts_zscore(_, '_'), _)": 13
 }
-- Depth {'n': 2432, 'min': 4.0, 'p25': 8.0, 'median': 11.0, 'mean': 11.303042763157896, 'p75': 15.0, 'max': 31.0}
-- Turnover {'n': 2432, 'min': 0.0, 'p25': 0.0898, 'median': 0.19915, 'mean': 0.26323939144736846, 'p75': 0.37539999999999996, 'max': 1.5316}
-- Decay {'n': 2432, 'min': 0.0, 'p25': 0.0, 'median': 0.0, 'mean': 4.8129111842105265, 'p75': 10.0, 'max': 20.0}
-- Mean AST clone similarity: 0.400
+- Depth {'n': 1415, 'min': 4.0, 'p25': 6.0, 'median': 8.0, 'mean': 8.079858657243816, 'p75': 9.0, 'max': 17.0}
+- Turnover {'n': 1415, 'min': 0.0, 'p25': 0.013049999999999999, 'median': 0.057, 'mean': 0.11393477031802118, 'p75': 0.12795, 'max': 1.6211}
+- Decay {'n': 1415, 'min': 0.0, 'p25': 0.0, 'median': 5.0, 'mean': 6.424028268551237, 'p75': 15.0, 'max': 20.0}
+- Mean AST clone similarity: 0.373
 
 ## Module 2 - Behavioral independence (Effective Number of Bets)
 ### ALL with PnL
-- matrix: 572 alphas x 1234 days (coverage 1.000, q=N/T 0.464)
-- **ENB raw 10.03 | ENB denoised 12.08** (MP lambda+ 2.83)
-- PC1 share: raw 0.570 / denoised 0.570
-- mean |corr|: 0.554; cluster count {'0.5': 1, '0.7': 31}
+- matrix: 175 alphas x 1234 days (coverage 1.000, q=N/T 0.142)
+- **ENB raw 2.12 | ENB denoised 2.28** (MP lambda+ 1.89)
+- PC1 share: raw 0.817 / denoised 0.817
+- mean |corr|: 0.808; cluster count {'0.5': 1, '0.7': 1}
 - Behavioral clusters (representative = highest-fitness member):
-    - size 511: 0m8RdJbv (fit 0.352, sharpe 2.960) archetype `group_neutralize(trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), _)`
-    - size 15: 88LGR6ko (fit -0.027, sharpe 1.950) archetype `group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), _)`
-    - size 9: GrolLVo5 (fit -0.016, sharpe 1.640) archetype `group_neutralize(trade_when(ts_zscore(_, '_') > '_', ts_quantile(ts_zscore(-ts_zscore(subtract(_, vec_avg(_)), '_'), '_'), '_'), -'_'), _)`
-    - size 6: QPQO7pw5 (fit -0.027, sharpe 2.070) archetype `group_neutralize(trade_when(ts_zscore(_, '_') > '_', ts_mean(trade_when(ts_backfill(_, '_') > '_', trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(rank(_), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), '_'), -'_'), _)`
-    - size 4: KPLVJbnN (fit -0.028, sharpe 1.550) archetype `group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(add(_, subtract(_, vec_avg(_))) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), _)`
-    - size 2: bl9r2Wx6 (fit -0.024, sharpe 2.220) archetype `group_neutralize(trade_when(ts_zscore(subtract(subtract(_, _), vec_avg(_)), '_') > '_', trade_when(ts_zscore(_, '_') > normalize(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), _)`
-    - size 1: mLX5bAZE (fit -0.012, sharpe 1.340) archetype `group_neutralize(ts_decay_linear(trade_when(ts_zscore(_, '_') > group_neutralize(rank(ts_rank(_, '_')), _), ts_zscore(winsorize(ts_rank(_, '_')), '_'), -'_'), '_'), _)`
-    - size 1: 3qAp9nnO (fit -0.019, sharpe 1.420) archetype `group_neutralize(ts_rank(-trade_when(ts_zscore(_, '_') > '_', ts_zscore(subtract(_, vec_avg(_)), '_'), -'_'), '_'), _)`
-    - size 1: O09rNZvY (fit -0.026, sharpe 1.460) archetype `group_neutralize(trade_when(group_neutralize(rank(ts_rank(_, '_')), _) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(add(_, _), _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(_, '_')), '_'), -'_'), _)`
-    - size 1: e7rbGw3g (fit -0.029, sharpe 1.730) archetype `group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), -'_'), _)`
-    - size 1: ZYoa22Ax (fit -0.024, sharpe 1.910) archetype `group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), -'_'), _)`
-    - size 1: npWanJ6M (fit -0.022, sharpe 1.980) archetype `group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), -'_'), _)`
+    - size 175: 6XELjpvG (fit 0.976, sharpe 1.820) archetype `group_neutralize(ts_mean(rank(_), '_'), _)`
 ### QUALIFIED with PnL
-- matrix: 572 alphas x 1234 days (coverage 1.000, q=N/T 0.464)
-- **ENB raw 10.03 | ENB denoised 12.08** (MP lambda+ 2.83)
-- PC1 share: raw 0.570 / denoised 0.570
-- mean |corr|: 0.554; cluster count {'0.5': 1, '0.7': 31}
+- matrix: 175 alphas x 1234 days (coverage 1.000, q=N/T 0.142)
+- **ENB raw 2.12 | ENB denoised 2.28** (MP lambda+ 1.89)
+- PC1 share: raw 0.817 / denoised 0.817
+- mean |corr|: 0.808; cluster count {'0.5': 1, '0.7': 1}
 - Behavioral clusters (representative = highest-fitness member):
-    - size 511: 0m8RdJbv (fit 0.352, sharpe 2.960) archetype `group_neutralize(trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), _)`
-    - size 15: 88LGR6ko (fit -0.027, sharpe 1.950) archetype `group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), _)`
-    - size 9: GrolLVo5 (fit -0.016, sharpe 1.640) archetype `group_neutralize(trade_when(ts_zscore(_, '_') > '_', ts_quantile(ts_zscore(-ts_zscore(subtract(_, vec_avg(_)), '_'), '_'), '_'), -'_'), _)`
-    - size 6: QPQO7pw5 (fit -0.027, sharpe 2.070) archetype `group_neutralize(trade_when(ts_zscore(_, '_') > '_', ts_mean(trade_when(ts_backfill(_, '_') > '_', trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(rank(_), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), '_'), -'_'), _)`
-    - size 4: KPLVJbnN (fit -0.028, sharpe 1.550) archetype `group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(add(_, subtract(_, vec_avg(_))) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), _)`
-    - size 2: bl9r2Wx6 (fit -0.024, sharpe 2.220) archetype `group_neutralize(trade_when(ts_zscore(subtract(subtract(_, _), vec_avg(_)), '_') > '_', trade_when(ts_zscore(_, '_') > normalize(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), _)`
-    - size 1: mLX5bAZE (fit -0.012, sharpe 1.340) archetype `group_neutralize(ts_decay_linear(trade_when(ts_zscore(_, '_') > group_neutralize(rank(ts_rank(_, '_')), _), ts_zscore(winsorize(ts_rank(_, '_')), '_'), -'_'), '_'), _)`
-    - size 1: 3qAp9nnO (fit -0.019, sharpe 1.420) archetype `group_neutralize(ts_rank(-trade_when(ts_zscore(_, '_') > '_', ts_zscore(subtract(_, vec_avg(_)), '_'), -'_'), '_'), _)`
-    - size 1: O09rNZvY (fit -0.026, sharpe 1.460) archetype `group_neutralize(trade_when(group_neutralize(rank(ts_rank(_, '_')), _) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(add(_, _), _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(_, '_')), '_'), -'_'), _)`
-    - size 1: e7rbGw3g (fit -0.029, sharpe 1.730) archetype `group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), -'_'), _)`
-    - size 1: ZYoa22Ax (fit -0.024, sharpe 1.910) archetype `group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), -'_'), _)`
-    - size 1: npWanJ6M (fit -0.022, sharpe 1.980) archetype `group_neutralize(trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > '_', trade_when(ts_zscore(_, '_') > zscore(zscore(group_neutralize(rank(ts_rank(add(add(_, _), vec_avg(_)), '_')), _))), ts_zscore(winsorize(ts_rank(subtract(_, vec_avg(_)), '_')), '_'), -'_'), -'_'), -'_'), _)`
+    - size 175: 6XELjpvG (fit 0.976, sharpe 1.820) archetype `group_neutralize(ts_mean(rank(_), '_'), _)`
 
 ## Module 3 - Statistical validity
-- DSR survivors (deflation prob >= 95%): 0/2432 at TRUE N=2432 (vs 0 at capped N=1000)
+- DSR survivors (deflation prob >= 95%): 0/1415 at TRUE N=1415 (vs 0 at capped N=1000)
 - DSR survival rate (true N): 0.000
-- **PBO 0.286** over 252 CSCV partitions (10 blocks)
+- **PBO 0.583** over 252 CSCV partitions (10 blocks)
 - **DATA GAP:** oos_sharpe is empty for the whole run -- IS->OOS decay cannot be validated. Wire OOS capture into the next run.
 - Top alphas by true-N DSR:
-    - 0m8GdGAp: DSR 1.067, MinTRL n/a yr
-    - O09zWZpp: DSR 0.919, MinTRL n/a yr
-    - O09zXJwv: DSR 0.892, MinTRL n/a yr
-    - MPxee7p6: DSR 0.866, MinTRL n/a yr
-    - 3qAPoRkO: DSR 0.866, MinTRL n/a yr
-    - xAnGvA1J: DSR 0.866, MinTRL n/a yr
-    - 78dmd7j5: DSR 0.787, MinTRL n/a yr
-    - wpeGNYw1: DSR 0.787, MinTRL n/a yr
-    - mLX7KmP6: DSR 0.787, MinTRL n/a yr
-    - ZYozg608: DSR 0.787, MinTRL n/a yr
+    - e7rY8rMJ: DSR 0.121, MinTRL n/a yr
+    - bl9mV7EM: DSR 0.119, MinTRL n/a yr
+    - RRpRLApj: DSR 0.119, MinTRL n/a yr
+    - 58vm3ZE5: DSR 0.104, MinTRL n/a yr
+    - omYbw0xl: DSR 0.097, MinTRL n/a yr
+    - omK7JvQb: DSR 0.095, MinTRL n/a yr
+    - mLXGV9bx: DSR 0.063, MinTRL n/a yr
+    - Xgpg2Yom: DSR 0.061, MinTRL n/a yr
+    - A1wWWNVe: DSR 0.061, MinTRL n/a yr
+    - O0pOkJ57: DSR 0.060, MinTRL n/a yr
 
 ## Module 4 - GA / search health
-- Generations present: [0, 1, 2, 3, 4, 5]
-- Best-fitness lift vs seed: -0.2241
-- Structural duplicate rate (wasted compute proxy): 0.105
+- Generations present: [0, 1, 2, 3, 4]
+- Best-fitness lift vs seed: -0.9390
+- Structural duplicate rate (wasted compute proxy): 0.168
 - Per-generation collapse (gen: opEntropy / effFamilies / winnerRate / bestSharpe):
-    - g0 (n=692): 0.556 / 1.94 / 0.152 / 2.130
-    - g1 (n=306): 0.572 / 1.54 / 0.529 / 2.220
-    - g2 (n=339): 0.574 / 1.50 / 0.501 / 2.580
-    - g3 (n=467): 0.565 / 1.50 / 0.649 / 3.120
-    - g4 (n=515): 0.564 / 1.35 / 0.715 / 3.310
-    - g5 (n=113): 0.558 / 1.44 / 0.770 / 3.330
+    - g0 (n=608): 0.562 / 1.96 / 0.194 / 1.870
+    - g1 (n=236): 0.572 / 1.99 / 0.538 / 1.870
+    - g2 (n=243): 0.581 / 2.01 / 0.461 / 1.880
+    - g3 (n=253): 0.566 / 2.00 / 0.565 / 1.900
+    - g4 (n=75): 0.552 / 1.89 / 0.507 / 1.920
 - Lineage / mutation / origin:
-    - lineage_concentration: NOT COMPUTABLE: no parent_id recorded. Add a parent_id TEXT column (written at offspring creation) to enable it.
-    - mutation_productivity: NOT COMPUTABLE: needs parent_id + mutation_type. Add both (written at offspring creation) to measure which mutations beat their parent.
-    - origin_survival: NOT COMPUTABLE: no origin/source tag. Add an origin TEXT column (seed / reseed / ga / negation / refine / universe_sweep) to track reseed survival.
+    - lineage_concentration: {"parents_with_offspring": 162, "offspring_hhi": 0.012550078981708294, "effective_parent_count": 79.68077344035024, "top_parents": {"KPLMYYVE": 31, "LLR2E2kn": 26, "ZYo1XQ9Q": 26, "RRrwmO9z": 26, "58vd9Pl6": 25, "gJ3NVXEm": 25, "wpekWbN5": 24, "3qAvmGLz": 20}}
+    - mutation_productivity: {"refine:correlation": {"beats_parent": 14, "evaluated": 209, "productivity": 0.06698564593301436}, "refine:sharpe": {"beats_parent": 17, "evaluated": 183, "productivity": 0.09289617486338798}, "crossover": {"beats_parent": 4, "evaluated": 168, "productivity": 0.023809523809523808}, "refine:turnover": {"beats_parent": 33, "evaluated": 153, "productivity": 0.21568627450980393}, "crossover+mutation": {"beats_parent": 2, "evaluated": 144, "productivity": 0.013888888888888888}, "universe_sweep": {"beats_parent": 4, "evaluated": 12, "productivity": 0.3333333333333333}, "negation": {"beats_parent": 1, "evaluated": 3, "productivity": 0.3333333333333333}}
+    - origin_survival: {"refine": {"qualified": 148, "total": 634, "qualified_rate": 0.2334384858044164}, "ga": {"qualified": 27, "total": 396, "qualified_rate": 0.06818181818181818}, "unknown": {"qualified": 0, "total": 370, "qualified_rate": 0.0}, "universe_sweep": {"qualified": 0, "total": 12, "qualified_rate": 0.0}, "negation": {"qualified": 0, "total": 3, "qualified_rate": 0.0}}
 
 ## Module 5 - Grinold breadth ceiling
 - not available (no ENB)

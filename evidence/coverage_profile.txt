@@ -1,0 +1,13 @@
+## /data/raw/brainforge-v2/synthetic_daily_returns.csv
+
+- Shape: 480,000 rows x 4 columns
+- Duplicate rows: 0
+- Candidate key columns (distinct == rows): return
+
+| column | type | non-null | distinct | values |
+| --- | --- | --- | --- | --- |
+| phi | number | 100% | 4 | -0.5 → 0.8, mean 0.2 |
+| seed | number | 100% | 800 | 20,261,002 → 20,291,201, mean 2.028e+07 |
+| observation | number | 100% | 600 | 0 → 599, mean 299.5 |
+| return | number | 100% | 480,000 | -0.08388 → 0.06679, mean 0.0005846 |
+

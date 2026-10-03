@@ -1,0 +1,29 @@
+{
+ "fields": 122748,
+ "listing_occurrences": 1175654,
+ "regions_with_listing_rows": [
+  "ASI",
+  "CHN",
+  "EUR",
+  "GLB",
+  "HKG",
+  "IND",
+  "KOR",
+  "MEA",
+  "USA"
+ ],
+ "joint_axes": 43,
+ "conflicting_records": 31152,
+ "complete": false,
+ "sources": [
+  {
+   "file": "data-fields.json",
+   "sha256": "5d526be7de3d9601e1b4a6ba43f4c696f62fd197978228e88d4e3a68f699c0f8"
+  },
+  {
+   "file": "data-fields.json",
+   "sha256": "d2067664d5ec7a84f1a5e3595acb1f0d22b72b86a613614873c8b0dc59783fa9"
+  }
+ ],
+ "note": "Historical partial snapshots. Positive tuples only; no completeness claim."
+}

@@ -1,0 +1,835 @@
+"""
+platform_snapshot.py -- Full-coverage, self-discovering snapshot of the
+WorldQuant BRAIN platform.
+
+GOAL
+----
+Capture ~100% of everything the platform will expose to our (now Consultant)
+account -- INCLUDING surfaces we do not know about yet -- by combining five
+strategies so we are not limited to hand-coded endpoints:
+
+  1. SEED REGISTRY     a broad list of known + candidate GET endpoints; any that
+                       answer HTTP 200 become crawl roots (non-200 are dropped).
+  2. LINK/ID DISCOVERY every JSON response is walked recursively; any nested
+                       relative API path, absolute api-host URL, or HATEOAS link
+                       (self / href / url / next / parent / dataset / ...) is
+                       turned into a new frontier URL. Every row 'id' on a list
+                       endpoint spawns a '<endpoint>/<id>' detail URL. This is
+                       what catches endpoints we never hard-coded.
+  3. CAP-BUSTING SWEEP list endpoints (data-fields, data-sets, ...) truncate at
+                       a hard listing cap (10k rows). We enumerate
+                       region x delay x VALID universe and, whenever a slice hits
+                       the cap, transparently re-query it PER DATASET (each far
+                       below the cap) so no field is silently dropped.
+                       NOTE: `universe` is a REQUIRED filter -- omitting it makes
+                       every non-default region return zero rows. An earlier
+                       version dropped that axis (universes add no new field ids
+                       WITHIN a region) and silently emptied 6 of 9 regions while
+                       still reporting success, so validity is now probed per
+                       slice. _completeness.json certifies zero capped slices AND
+                       zero empty regions.
+  4. ENUM FIXPOINT     distinct enum values seen in responses (regions, delays,
+                       universes, instrument types, alpha types, categories, ...)
+                       are fed back into the option grid and the sweep repeats
+                       until no new endpoints / ids / enum values appear
+                       (bounded by hard caps).
+  5. PARAM PROBING     for every discovered list endpoint we probe a small set
+                       of common filter params to reveal hidden facets.
+
+SAFETY
+------
+  * GET-ONLY. The crawler NEVER issues POST/PUT/PATCH/DELETE, so it cannot
+    create, submit, or mutate anything on the platform.
+  * Reuses NetworkEngine -> auth-refresh, TLS impersonation, the async rate
+    limiter, Gaussian jitter, retries, and the circuit breaker all apply, so
+    this will not hammer the API or trigger 429 storms.
+  * Hard caps (MAX_REQUESTS, MAX_DEPTH, PER_ENDPOINT_PAGE_CAP,
+    MAX_DETAIL_PER_COLLECTION) bound runtime and disk.
+  * A denylist skips auth/session-sensitive stems (login, logout, token, ...).
+  * Checkpointing: the visited set + frontier are flushed continuously so a long
+    crawl can be interrupted and resumed with --resume.
+
+OUTPUT (under ./snapshot/ by default)
+-------------------------------------
+  raw/<slug>.json          full paginated rows for every list endpoint (grid
+                           endpoints store one slice per settings combo)
+  detail/<coll>/<id>.json  per-object detail (capped per collection)
+  _manifest.json           every URL visited: status, count, keys, ms, kind
+  _schema.json             inferred schema per endpoint (union of keys + one
+                           redacted sample + observed enum domains)
+  _enums.json              every distinct enum domain discovered
+  _digest.md               compact human/LLM-readable summary to paste as context
+  _checkpoint.json         visited set + frontier + enums for --resume
+  _completeness.json       cap-busting ledger: proves 0 capped/truncated slices
+
+Run AFTER probe_wq.py confirms connectivity:
+
+    python platform_snapshot.py                     # full crawl, default caps
+    python platform_snapshot.py --out snapshot_consultant --max-requests 8000
+    python platform_snapshot.py --resume            # continue an interrupted crawl
+    python platform_snapshot.py --no-detail --no-grid   # fast structural map only
+
+Read-only. Every row comes straight from the live API; nothing is invented.
+"""
+import argparse
+import asyncio
+import json
+import re
+import time
+from collections import Counter, defaultdict, deque
+from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+import config
+from network_engine import NetworkEngine
+
+# --- host / base ------------------------------------------------------------
+API_HOST_HINTS = tuple(getattr(config, "WQ_API_HOST_HINTS",
+    ("api.worldquantbrain.com", "platform.worldquantbrain.com",
+     "worldquantbrain.com")))
+# If NetworkEngine's base URL already contains a version/path prefix (e.g.
+# '.../v1'), discovered absolute URLs that repeat it are de-duplicated by
+# stripping this prefix. Leave '' if the base has no path component.
+API_PATH_PREFIX = getattr(config, "WQ_API_PATH_PREFIX", "")
+
+# --- hard caps (override in config.py) --------------------------------------
+MAX_REQUESTS = int(getattr(config, "SNAPSHOT_MAX_REQUESTS", 20000))
+MAX_DEPTH = int(getattr(config, "SNAPSHOT_MAX_DEPTH", 6))
+PAGE_SIZE = int(getattr(config, "SNAPSHOT_PAGE_SIZE", 50))
+PER_ENDPOINT_PAGE_CAP = int(getattr(config, "SNAPSHOT_PAGE_CAP", 2000))
+MAX_DETAIL_PER_COLLECTION = int(getattr(config, "SNAPSHOT_DETAIL_CAP", 3000))
+ENUM_FIXPOINT_ROUNDS = int(getattr(config, "SNAPSHOT_ENUM_ROUNDS", 4))
+GRID_COMBO_CAP = int(getattr(config, "SNAPSHOT_GRID_COMBO_CAP", 4000))
+CHECKPOINT_EVERY = int(getattr(config, "SNAPSHOT_CHECKPOINT_EVERY", 50))
+
+# --- seeds: known + speculative; only 200s survive --------------------------
+SEED_ENDPOINTS = list(getattr(config, "SNAPSHOT_SEED_ENDPOINTS", [
+    "/operators",
+    "/data-sets", "/data-fields", "/data-categories",
+    "/users/self", "/users/self/alphas", "/users/self/activities",
+    "/alphas", "/simulations",
+    "/competitions", "/events",
+    "/pyramids", "/pyramid-multipliers", "/pyramid-themes",
+    "/leaderboards", "/glossary", "/documentation", "/settings",
+    "/simulations/options", "/data-fields/options", "/regions",
+    "/universes", "/instrument-types", "/alpha-types", "/checks",
+    "/messages", "/notifications",
+]))
+
+# List endpoints known to be settings-sensitive; discovered ones are added when
+# their rows contain any GRID_PARAM key.
+GRID_ENDPOINTS = set(getattr(config, "SNAPSHOT_GRID_ENDPOINTS",
+    {"/data-sets", "/data-fields"}))
+GRID_PARAMS = ("instrumentType", "region", "delay", "universe")
+
+# --- cap-busting partitioning (fixes the 10k listing truncation) ------------
+# The platform truncates any list response at this many rows. A slice returning
+# exactly this many is treated as INCOMPLETE and is re-queried per dataset.
+LISTING_CAP = int(getattr(config, "SNAPSHOT_LISTING_CAP", 10000))
+# Candidate query-param names for the dataset partition; the crawler CALIBRATES
+# which one actually filters, so we never hard-guess the API contract.
+PARTITION_PARAM_CANDIDATES = list(getattr(config, "SNAPSHOT_PARTITION_PARAMS", [
+    "dataset.id", "dataset", "datasetId", "dataset_id",
+]))
+# Page sizes probed once at sweep start; the largest the API honors wins. The
+# 50-row default is what made a full sweep take days.
+PAGE_SIZE_CANDIDATES = list(getattr(config, "SNAPSHOT_PAGE_SIZES",
+                                    [1000, 500, 200, 100]))
+
+# Extra facet params probed once per discovered list endpoint.
+PROBE_FACET_PARAMS = list(getattr(config, "SNAPSHOT_FACET_PARAMS", [
+    {"hidden": "true"}, {"status": "ACTIVE"},
+]))
+
+DENY_STEMS = tuple(getattr(config, "SNAPSHOT_DENY_STEMS", (
+    "/authentication", "/auth", "/login", "/logout", "/signin", "/signout",
+    "/password", "/token", "/oauth", "/session",
+)))
+
+LINK_KEYS = tuple(getattr(config, "SNAPSHOT_LINK_KEYS", (
+    "self", "href", "url", "next", "previous", "prev", "first", "last",
+    "parent", "detail", "link", "related",
+)))
+ENUM_KEYS = tuple(getattr(config, "SNAPSHOT_ENUM_KEYS", (
+    "region", "delay", "universe", "instrumentType", "type", "category",
+    "neutralization", "alphaType", "language", "delayType", "status",
+    "decay", "pyramid", "theme",
+)))
+# Enum keys that also expand the option grid.
+GRID_ENUM_KEYS = {"region", "delay", "universe", "instrumentType"}
+
+_PATH_RE = re.compile(r"^/[A-Za-z0-9][A-Za-z0-9_\-./]*$")
+_ID_SAFE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-.:]{0,120}$")
+
+
+# --- small helpers ----------------------------------------------------------
+def _slug(path):
+    s = path.strip("/").replace("/", "__")
+    s = re.sub(r"[^A-Za-z0-9_.-]+", "_", s)
+    return s or "root"
+
+
+def _to_relative(url):
+    """Normalize any discovered URL/path to a relative '/path?query' that
+    NetworkEngine accepts, or None if it is not an in-scope API URL."""
+    if not isinstance(url, str) or not url:
+        return None
+    u = url.strip()
+    if u.startswith(("http://", "https://")):
+        p = urlsplit(u)
+        if not any(h in p.netloc for h in API_HOST_HINTS):
+            return None
+        path, query = p.path, p.query
+    elif u.startswith("/"):
+        p = urlsplit(u)
+        path, query = p.path, p.query
+    else:
+        return None
+    if API_PATH_PREFIX and path.startswith(API_PATH_PREFIX):
+        path = path[len(API_PATH_PREFIX):] or "/"
+    if not _PATH_RE.match(path):
+        return None
+    return path + ("?" + query if query else "")
+
+
+def _split(rel):
+    p = urlsplit(rel)
+    return p.path, dict(parse_qsl(p.query))
+
+
+def _build(path, params):
+    clean = {k: v for k, v in params.items() if v is not None}
+    return urlunsplit(("", "", path, urlencode(clean, doseq=True), ""))
+
+
+def _canonical(rel):
+    """Visited-set key: path + sorted non-pagination query (so different offsets
+    of the same endpoint collapse to one logical resource)."""
+    path, q = _split(rel)
+    q.pop("limit", None)
+    q.pop("offset", None)
+    if not q:
+        return path
+    return path + "?" + urlencode(sorted(q.items()))
+
+
+def _is_denied(path):
+    low = path.lower()
+    return any(stem in low for stem in DENY_STEMS)
+
+
+def _enum_value(v):
+    """Coerce an enum field value (str / {id,name} / list) to hashable scalars."""
+    out = []
+    if isinstance(v, str):
+        out.append(v)
+    elif isinstance(v, (int, float, bool)):
+        out.append(v)
+    elif isinstance(v, dict):
+        for key in ("id", "name", "value"):
+            if isinstance(v.get(key), (str, int, float)):
+                out.append(v[key])
+                break
+    elif isinstance(v, list):
+        for item in v:
+            out.extend(_enum_value(item))
+    return out
+
+
+def _rows_of(body):
+    """Return (rows, is_list) for a response body of any common shape."""
+    if isinstance(body, list):
+        return body, True
+    if isinstance(body, dict):
+        for key in ("results", "items", "data", "records"):
+            if isinstance(body.get(key), list):
+                return body[key], True
+    return [], False
+
+
+def _count_of(body):
+    if isinstance(body, dict):
+        for key in ("count", "total", "totalCount"):
+            if isinstance(body.get(key), int):
+                return body[key]
+    return None
+
+
+def _redact(row):
+    """Drop obviously sensitive keys from a sample row kept for schema context."""
+    if not isinstance(row, dict):
+        return row
+    bad = ("email", "password", "token", "cookie", "secret", "apikey", "api_key")
+    return {k: ("<redacted>" if any(b in k.lower() for b in bad) else v)
+            for k, v in row.items()}
+
+
+class Crawler:
+    def __init__(self, net, out_dir, do_detail=True, do_grid=True, resume=False):
+        self.net = net
+        self.out = Path(out_dir)
+        self.do_detail = do_detail
+        self.do_grid = do_grid
+        (self.out / "raw").mkdir(parents=True, exist_ok=True)
+        (self.out / "detail").mkdir(parents=True, exist_ok=True)
+
+        self.frontier = deque()          # (rel, depth, kind)
+        self.visited = set()             # canonical keys
+        self.requests = 0
+        self.manifest = []
+        self.schema = {}                 # slug -> {path, keys, sample, counts}
+        self.enums = defaultdict(set)    # enum key -> set(values)
+        self.detail_counts = Counter()   # collection path -> details fetched
+        self.grid_endpoints = set(GRID_ENDPOINTS)
+        self.grid = {k: set() for k in GRID_PARAMS}
+        self.capped_partitions = []       # settings slices that stayed capped
+        self.partition_param = None       # calibrated dataset filter param name
+        self.page_size_calibrated = False
+        self.slice_report = []            # rows harvested per region/delay
+        self.empty_slices = []            # region/delay that returned NOTHING
+        self._seed_grid_from_config()
+        if resume:
+            self._load_checkpoint()
+
+    # -- grid ---------------------------------------------------------------
+    def _seed_grid_from_config(self):
+        self.grid["instrumentType"].update(
+            getattr(config, "ALL_INSTRUMENTS", [getattr(config, "DEFAULT_INSTRUMENT", "EQUITY")]))
+        self.grid["region"].update(
+            getattr(config, "ALL_REGIONS", [getattr(config, "DEFAULT_REGION", "USA")]))
+        self.grid["delay"].update(
+            getattr(config, "ALL_DELAYS", [getattr(config, "DEFAULT_DELAY", 1)]))
+        self.grid["universe"].update(getattr(config, "UNIVERSES", []) or [])
+
+    def _grid_product(self):
+        import itertools
+        dims = [sorted(self.grid[k], key=str) or [None] for k in GRID_PARAMS]
+        combos = []
+        for combo in itertools.product(*dims):
+            settings = {k: v for k, v in zip(GRID_PARAMS, combo) if v is not None}
+            if settings:
+                combos.append(settings)
+            if len(combos) >= GRID_COMBO_CAP:
+                break
+        return combos
+
+    # -- io -----------------------------------------------------------------
+    async def _get(self, rel):
+        if self.requests >= MAX_REQUESTS:
+            return None
+        self.requests += 1
+        t0 = time.time()
+        try:
+            res = await self.net.request("GET", rel)
+        except Exception as exc:  # NetworkEngine already retries; log terminal failures
+            self.manifest.append({"url": rel, "status": "ERR", "error": str(exc)[:200]})
+            return None
+        ms = int((time.time() - t0) * 1000)
+        body = res.get("json") if isinstance(res, dict) else None
+        status = res.get("status_code") if isinstance(res, dict) else None
+        rows, is_list = _rows_of(body)
+        self.manifest.append({
+            "url": rel, "status": status, "ms": ms,
+            "count": _count_of(body), "rows": len(rows) if is_list else None,
+            "kind": "list" if is_list else "object",
+        })
+        if status != 200:
+            return None
+        return body
+
+    def _record_schema(self, path, rows, is_list):
+        slug = _slug(path)
+        entry = self.schema.setdefault(slug, {
+            "path": path, "keys": set(), "sample": None, "row_total": 0,
+            "is_list": is_list,
+        })
+        for r in rows[:200]:
+            if isinstance(r, dict):
+                entry["keys"].update(r.keys())
+                if entry["sample"] is None:
+                    entry["sample"] = _redact(r)
+        entry["row_total"] += len(rows)
+
+    def _harvest(self, path, body, depth):
+        """Extract enum values, links, and detail ids from a response body."""
+        rows, is_list = _rows_of(body)
+        new_links = []
+
+        def visit(node):
+            if isinstance(node, dict):
+                for k, v in node.items():
+                    if k in ENUM_KEYS:
+                        for val in _enum_value(v):
+                            self.enums[k].add(val)
+                            if k in GRID_ENUM_KEYS and isinstance(val, (str, int)):
+                                self.grid[k].add(val)
+                    if k in LINK_KEYS:
+                        for cand in _enum_value(v) if not isinstance(v, str) else [v]:
+                            rel = _to_relative(cand if isinstance(cand, str) else "")
+                            if rel:
+                                new_links.append(rel)
+                    if isinstance(v, str):
+                        rel = _to_relative(v)
+                        if rel:
+                            new_links.append(rel)
+                    visit(v)
+            elif isinstance(node, list):
+                for item in node:
+                    visit(item)
+
+        visit(body)
+
+        # Row ids -> detail endpoints (only from list endpoints).
+        if is_list and self.do_detail:
+            for r in rows:
+                rid = r.get("id") if isinstance(r, dict) else None
+                if isinstance(rid, (str, int)) and _ID_SAFE_RE.match(str(rid)):
+                    if self.detail_counts[path] >= MAX_DETAIL_PER_COLLECTION:
+                        break
+                    detail = f"{path.rstrip('/')}/{rid}"
+                    self._enqueue(detail, depth + 1, "detail")
+                    self.detail_counts[path] += 1
+
+        # Flag settings-sensitive list endpoints for the grid sweep.
+        if is_list and rows and isinstance(rows[0], dict):
+            if any(g in rows[0] for g in GRID_PARAMS):
+                self.grid_endpoints.add(path)
+
+        for rel in new_links:
+            self._enqueue(rel, depth + 1, "link")
+
+    def _enqueue(self, rel, depth, kind):
+        if depth > MAX_DEPTH:
+            return
+        path, _ = _split(rel)
+        if _is_denied(path):
+            return
+        key = _canonical(rel)
+        if key in self.visited:
+            return
+        self.visited.add(key)
+        self.frontier.append((rel, depth, kind))
+
+    async def _paginate(self, path, base_params):
+        """Page through a list endpoint; return all rows."""
+        rows, offset, pages = [], 0, 0
+        while pages < PER_ENDPOINT_PAGE_CAP:
+            rel = _build(path, {**base_params, "limit": PAGE_SIZE, "offset": offset})
+            body = await self._get(rel)
+            if body is None:
+                break
+            page, is_list = _rows_of(body)
+            if pages == 0:
+                self._harvest(path, body, depth=0)
+            if not page:
+                break
+            rows.extend(page)
+            self._record_schema(path, page, True)
+            total = _count_of(body)
+            offset += PAGE_SIZE
+            pages += 1
+            if not is_list or (total is not None and offset >= total):
+                break
+            if total is None and len(page) < PAGE_SIZE:
+                break
+        return rows
+
+    async def _handle(self, rel, depth):
+        """Fetch one frontier item: paginate if list, store if object."""
+        path, q = _split(rel)
+        probe = _build(path, {**q, "limit": PAGE_SIZE, "offset": 0})
+        body = await self._get(probe)
+        if body is None:
+            return
+        rows, is_list = _rows_of(body)
+        self._harvest(path, body, depth)
+        if is_list:
+            all_rows = await self._paginate(path, q)
+            self._store_raw(path, [{"settings": q or None, "count": len(all_rows),
+                                    "rows": all_rows])
+        else:
+            self._record_schema(path, [body], False)
+            self._store_detail(path, body)
+
+    def _store_raw(self, path, slices):
+        f = self.out / "raw" / f"{_slug(path)}.json"
+        existing = []
+        if f.exists():
+            try:
+                existing = json.loads(f.read_text()).get("slices", [])
+            except Exception:
+                existing = []
+        payload = {"endpoint": path, "slices": existing + slices}
+        f.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    def _store_detail(self, path, body):
+        parts = path.strip("/").split("/")
+        if len(parts) < 2:
+            coll, oid = "root", parts[-1] if parts else "item"
+        else:
+            coll, oid = "__".join(parts[:-1]), parts[-1]
+        d = self.out / "detail" / _slug(coll)
+        d.mkdir(parents=True, exist_ok=True)
+        safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", str(oid))[:120] or "item"
+        (d / f"{safe}.json").write_text(json.dumps(body, indent=2), encoding="utf-8")
+
+    # -- phases -------------------------------------------------------------
+    async def crawl_frontier(self):
+        while self.frontier and self.requests < MAX_REQUESTS:
+            rel, depth, _ = self.frontier.popleft()
+            await self._handle(rel, depth)
+            if len(self.manifest) % CHECKPOINT_EVERY == 0:
+                self._save_checkpoint()
+
+    # -- cap-busting partitioned sweep --------------------------------------
+    async def _paginate_counted(self, path, params):
+        """Page a list endpoint fully; return (rows, capped). capped=True means
+        the slice hit the platform's listing cap and is therefore INCOMPLETE."""
+        rows = await self._paginate(path, params)
+        return rows, len(rows) >= LISTING_CAP
+
+    async def _list_ids(self, path, settings):
+        """Distinct row ids for a settings slice (used to enumerate datasets)."""
+        ids = []
+        for r in await self._paginate(path, settings):
+            rid = r.get("id") if isinstance(r, dict) else None
+            if isinstance(rid, str) and _ID_SAFE_RE.match(rid):
+                ids.append(rid)
+        return sorted(set(ids))
+
+    async def _calibrate_partition_param(self, path, settings, sample_id):
+        """Find which query-param name actually filters `path` by dataset, by
+        testing candidates against a known dataset id (no guessing)."""
+        if self.partition_param:
+            return self.partition_param
+        for cand in PARTITION_PARAM_CANDIDATES:
+            probe = await self._paginate(path, {**settings, cand: sample_id})
+            if probe and len(probe) < LISTING_CAP:
+                self.partition_param = cand
+                print(f"    calibrated partition param: '{cand}' "
+                      f"({len(probe)} rows for dataset={sample_id})")
+                return cand
+        return None
+
+    async def _sweep_complete(self, path, settings, dataset_ids):
+        """Guarantee completeness for ONE settings slice: if the flat slice hits
+        the cap, re-query PER DATASET (each far below the cap) so NO field is
+        silently truncated. Returns the number of rows stored, so the caller can
+        detect a slice that yielded nothing at all."""
+        stored = 0
+        rows, capped = await self._paginate_counted(path, settings)
+        if not capped:
+            if rows:
+                self._store_raw(path, [{"settings": settings, "count": len(rows),
+                                        "rows": rows])
+                stored += len(rows)
+            self._save_checkpoint()
+            return stored
+        # Slice is capped -> partition by dataset.
+        param = None
+        if dataset_ids:
+            param = await self._calibrate_partition_param(path, settings, dataset_ids[0])
+        if not param:
+            if rows:
+                self._store_raw(path, [{"settings": settings, "count": len(rows),
+                                        "rows": rows, "capped": True])
+                stored += len(rows)
+            self.capped_partitions.append(dict(settings))
+            return stored
+        for ds in dataset_ids:
+            if self.requests >= MAX_REQUESTS:
+                self.capped_partitions.append({**settings, "note": "MAX_REQUESTS hit"})
+                return stored
+            sub = {**settings, param: ds}
+            ds_rows, ds_capped = await self._paginate_counted(path, sub)
+            if ds_rows:
+                self._store_raw(path, [{"settings": sub, "count": len(ds_rows),
+                                        "rows": ds_rows, "capped": ds_capped or None])
+                stored += len(ds_rows)
+            if ds_capped:
+                # Extremely rare: a single dataset > cap. Fall back to category.
+                cats = sorted(map(str, self.enums.get("category", [])))
+                if not cats:
+                    self.capped_partitions.append(dict(sub))
+                for cat in cats:
+                    cr = await self._paginate(path, {**sub, "category": cat})
+                    if cr:
+                        self._store_raw(path, [{"settings": {**sub, "category": cat},
+                                                "count": len(cr), "rows": cr,
+                                                "capped": len(cr) >= LISTING_CAP or None])
+                        stored += len(cr)
+                        if len(cr) >= LISTING_CAP:
+                            self.capped_partitions.append({**sub, "category": cat})
+            self._save_checkpoint()
+        return stored
+
+    async def _calibrate_page_size(self, path, settings):
+        """Find the largest page size the endpoint actually honors. The 50-row
+        default is what made a full sweep take days; most BRAIN list endpoints
+        serve far larger pages, cutting request count by ~10-20x."""
+        global PAGE_SIZE
+        if self.page_size_calibrated:
+            return
+        self.page_size_calibrated = True
+        best = PAGE_SIZE
+        for cand in PAGE_SIZE_CANDIDATES:
+            if cand <= best:
+                continue
+            body = await self._get(_build(path, {**settings, "limit": cand,
+                                                "offset": 0}))
+            if body is None:
+                continue
+            rows, _ = _rows_of(body)
+            if len(rows) > best:
+                best = len(rows)
+        if best > PAGE_SIZE:
+            print(f"    calibrated page size: {best} rows/request (was {PAGE_SIZE})")
+            PAGE_SIZE = best
+
+    async def _valid_universes(self, path, settings):
+        """The universes this region/delay ACTUALLY accepts, broadest first.
+
+        `universe` is a REQUIRED filter on /data-fields: omitting it makes every
+        non-default region return zero rows. That is exactly the bug that
+        silently emptied 6 of 9 regions while the ledger still said 'complete',
+        so validity is now discovered per slice with cheap limit=1 probes rather
+        than assuming the axis is redundant."""
+        found = []
+        for uni in sorted(self.grid["universe"], key=str):
+            if self.requests >= MAX_REQUESTS:
+                break
+            body = await self._get(_build(path, {**settings, "universe": uni,
+                                                 "limit": 1, "offset": 0}))
+            if body is None:
+                continue
+            rows, _ = _rows_of(body)
+            if not rows:
+                continue
+            found.append((_count_of(body) or 0, str(uni)))
+        found.sort(reverse=True)
+        return [u for _, u in found]
+
+    async def sweep_grid(self):
+        """Cap-busting completeness sweep over region x delay x VALID universe.
+
+        Two hard-won rules are encoded here:
+          * `universe` cannot be dropped. It is a required filter, so omitting it
+            returns nothing for every non-default region. We discover the valid
+            universes per region/delay and sweep them broadest-first, unioning
+            the results (duplicate field ids are deduped downstream).
+          * any slice that hits the listing cap is re-queried per dataset, so
+            nothing is truncated.
+        Every slice's row count is recorded, and a region/delay yielding no rows
+        at all is logged as an explicit GAP instead of passing silently."""
+        if not self.do_grid:
+            return
+        instruments = sorted(self.grid["instrumentType"], key=str) or ["EQUITY"]
+        regions = sorted(self.grid["region"], key=str)
+        delays = sorted(self.grid["delay"], key=str) or ["0", "1"]
+        for path in sorted(self.grid_endpoints):
+            for inst in instruments:
+                for region in regions:
+                    for delay in delays:
+                        if self.requests >= MAX_REQUESTS:
+                            return
+                        base = {"instrumentType": inst, "region": region,
+                                "delay": delay}
+                        await self._calibrate_page_size(path, base)
+                        universes = await self._valid_universes(path, base)
+                        # Datasets are themselves settings-scoped, so enumerate
+                        # them inside the broadest valid universe.
+                        ds_base = dict(base)
+                        if universes:
+                            ds_base["universe"] = universes[0]
+                        ds_ids = await self._list_ids("/data-sets", ds_base)
+                        got = 0
+                        for uni in (universes or [None]):
+                            if self.requests >= MAX_REQUESTS:
+                                break
+                            settings = dict(base)
+                            if uni is not None:
+                                settings["universe"] = uni
+                            got += await self._sweep_complete(path, settings, ds_ids)
+                        self.slice_report.append({
+                            "endpoint": path, "region": region, "delay": delay,
+                            "universes": universes, "rows": got,
+                        })
+                        if got == 0:
+                            self.empty_slices.append({
+                                "endpoint": path, "region": region,
+                                "delay": delay,
+                                "reason": "no rows for any universe",
+                            })
+                        print(f"  {path} {region}/D{delay}: {got:,} rows over "
+                              f"{len(universes)} universe(s)")
+                        self._save_checkpoint()
+
+    async def probe_facets(self):
+        """One-shot probe of extra filter params on each known list endpoint to
+        surface hidden facets (e.g. hidden/experimental datasets)."""
+        for path in sorted(self.grid_endpoints):
+            for extra in PROBE_FACET_PARAMS:
+                if self.requests >= MAX_REQUESTS:
+                    return
+                rel = _build(path, {**extra, "limit": PAGE_SIZE, "offset": 0})
+                body = await self._get(rel)
+                if body is not None:
+                    self._harvest(path, body, depth=1)
+
+    # -- outputs ------------------------------------------------------------
+    def _save_checkpoint(self):
+        cp = {
+            "visited": sorted(self.visited),
+            "frontier": list(self.frontier),
+            "requests": self.requests,
+            "enums": {k: sorted(map(str, v)) for k, v in self.enums.items()},
+            "grid": {k: sorted(map(str, v)) for k, v in self.grid.items()},
+            "detail_counts": dict(self.detail_counts),
+        }
+        (self.out / "_checkpoint.json").write_text(json.dumps(cp, indent=2),
+                                                   encoding="utf-8")
+
+    def _load_checkpoint(self):
+        f = self.out / "_checkpoint.json"
+        if not f.exists():
+            return
+        cp = json.loads(f.read_text())
+        self.visited = set(cp.get("visited", []))
+        self.frontier = deque(tuple(x) for x in cp.get("frontier", []))
+        self.requests = cp.get("requests", 0)
+        for k, vals in cp.get("enums", {}).items():
+            self.enums[k].update(vals)
+        for k, vals in cp.get("grid", {}).items():
+            self.grid.setdefault(k, set()).update(vals)
+        self.detail_counts.update(cp.get("detail_counts", {}))
+        print(f"  resumed: {len(self.visited)} visited, {len(self.frontier)} queued.")
+
+    def write_outputs(self):
+        (self.out / "_manifest.json").write_text(
+            json.dumps(self.manifest, indent=2), encoding="utf-8")
+        schema_out = {
+            slug: {"path": e["path"], "is_list": e["is_list"],
+                   "keys": sorted(e["keys"]), "row_total": e["row_total"],
+                   "sample": e["sample"]}
+            for slug, e in self.schema.items()
+        }
+        (self.out / "_schema.json").write_text(
+            json.dumps(schema_out, indent=2), encoding="utf-8")
+        (self.out / "_enums.json").write_text(
+            json.dumps({k: sorted(map(str, v)) for k, v in self.enums.items()},
+                       indent=2), encoding="utf-8")
+        self._write_completeness()
+        self._write_digest(schema_out)
+        self._save_checkpoint()
+
+    def _write_digest(self, schema_out):
+        lines = ["# BRAIN platform snapshot digest", ""]
+        ok = [m for m in self.manifest if m.get("status") == 200]
+        lines.append(f"- Requests issued: {self.requests}")
+        lines.append(f"- Endpoints (200): {len({m['url'].split('?')[0] for m in ok})}")
+        lines.append(f"- Manifest rows: {len(self.manifest)}")
+        lines.append(f"- Capped/incomplete partitions remaining: {len(self.capped_partitions)}")
+        lines.append(f"- Empty region/delay slices (GAPS): {len(self.empty_slices)}")
+        lines.append(f"- Dataset partition param: {self.partition_param or 'n/a'}")
+        lines.append(f"- Page size used: {PAGE_SIZE}")
+        lines.append("")
+        lines.append("## Completeness")
+        if not self.capped_partitions and not self.empty_slices:
+            lines.append("- Every swept slice returned rows and stayed BELOW the listing")
+            lines.append("  cap -> field catalog is COMPLETE.")
+        else:
+            if self.capped_partitions:
+                lines.append(f"- {len(self.capped_partitions)} slice(s) still hit the cap (see _completeness.json).")
+            if self.empty_slices:
+                lines.append(f"- {len(self.empty_slices)} region/delay slice(s) returned NO rows -- usually a")
+                lines.append("  missing/invalid universe filter. These are GAPS, not completeness.")
+        lines.append("")
+        lines.append("## Rows per region/delay")
+        for s in self.slice_report:
+            lines.append(f"- {s['endpoint']} {s['region']}/D{s['delay']}: {s['rows']} rows "
+                         f"over {len(s.get('universes') or [])} universe(s)")
+        lines.append("")
+        lines.append("## Option grid (final)")
+        for k in GRID_PARAMS:
+            vals = sorted(map(str, self.grid[k]))
+            lines.append(f"- {k} ({len(vals)}): {', '.join(vals[:40])}")
+        lines.append("")
+        lines.append("## Enum domains discovered")
+        for k, v in sorted(self.enums.items()):
+            vals = sorted(map(str, v))
+            lines.append(f"- {k} ({len(vals)}): {', '.join(vals[:40])}")
+        lines.append("")
+        lines.append("## Endpoints & schema")
+        for slug, e in sorted(schema_out.items()):
+            kind = "list" if e["is_list"] else "object"
+            lines.append(f"### {e['path']}  ({kind}, rows={e['row_total']})")
+            lines.append(f"keys: {', '.join(e['keys'][:60])}")
+            lines.append("")
+        (self.out / "_digest.md").write_text("\n".join(lines), encoding="utf-8")
+
+    def _write_completeness(self):
+        """Machine-checkable completeness ledger. `complete` is true ONLY when no
+        slice stayed at the listing cap AND no swept region/delay came back
+        empty. An empty region is a silent gap: an earlier version of this ledger
+        certified a run in which 6 of 9 regions returned nothing at all."""
+        report = {
+            "listing_cap": LISTING_CAP,
+            "partition_param": self.partition_param,
+            "page_size_used": PAGE_SIZE,
+            "regions_swept": sorted(map(str, self.grid.get("region", []))),
+            "delays_swept": sorted(map(str, self.grid.get("delay", []))),
+            "regions_with_rows": sorted({s["region"] for s in self.slice_report
+                                         if s.get("rows")}),
+            "capped_partitions": self.capped_partitions,
+            "empty_slices": self.empty_slices,
+            "slice_report": self.slice_report,
+            "complete": not self.capped_partitions and not self.empty_slices,
+        }
+        (self.out / "_completeness.json").write_text(
+            json.dumps(report, indent=2), encoding="utf-8")
+
+    def seed(self):
+        for ep in SEED_ENDPOINTS:
+            self._enqueue(ep, 0, "seed")
+
+
+async def run(args):
+    net = NetworkEngine()
+    crawler = Crawler(net, args.out, do_detail=not args.no_detail,
+                      do_grid=not args.no_grid, resume=args.resume)
+    try:
+        if not args.resume:
+            crawler.seed()
+        print(f"Seeded {len(crawler.frontier)} endpoint(s). Crawling...")
+        await crawler.crawl_frontier()
+        print(f"  discovery done: {crawler.requests} requests, "
+              f"{len(crawler.schema)} endpoints.")
+        await crawler.probe_facets()
+        print("  facet probe done. Sweeping option grid...")
+        await crawler.sweep_grid()
+        # A final frontier drain in case the grid/facets surfaced new links.
+        await crawler.crawl_frontier()
+    finally:
+        crawler.write_outputs()
+        await net.close()
+    print(f"\nDone. {crawler.requests} requests, {len(crawler.schema)} endpoints, "
+          f"{sum(crawler.detail_counts.values())} details.")
+    print(f"Output -> {crawler.out}/  (start with _digest.md, then _schema.json)")
+
+
+def parse_args():
+    p = argparse.ArgumentParser(description="Full-coverage BRAIN platform snapshot (read-only).")
+    p.add_argument("--out", default="snapshot", help="output directory")
+    p.add_argument("--max-requests", type=int, default=None,
+                   help="override MAX_REQUESTS for this run")
+    p.add_argument("--resume", action="store_true", help="resume from _checkpoint.json")
+    p.add_argument("--no-detail", action="store_true", help="skip per-object detail fetches")
+    p.add_argument("--no-grid", action="store_true", help="skip the option-grid sweep")
+    return p.parse_args()
+
+
+if __name__ == "__main__":
+    _args = parse_args()
+    if _args.max_requests:
+        MAX_REQUESTS = _args.max_requests
+    asyncio.run(run(_args))

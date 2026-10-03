@@ -1,0 +1,360 @@
+[
+  {
+    "title": "Consultant Generator \u2014 Implemented Offline Upgrade & Research (Oct 2026)",
+    "url": "https://app.notion.com/p/30e900b2367f4d4093317a95a0e16d05",
+    "export": "docs/notion-export/Consultant Generator _ Implemented Offline Upgrade _ Research _Oct 2026_.md",
+    "code_status": "documentation"
+  },
+  {
+    "title": "data_fields.json (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc948006a831f9819a4917cf",
+    "export": "docs/notion-export/data_fields.json.md",
+    "code_status": "quarantined_invalid_mirror_asset",
+    "parse_error": "Expecting value: line 4143 column 14 (char 100002)"
+  },
+  {
+    "title": "code.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc948006abf2f5a61ce73bd7",
+    "export": "docs/notion-export/code.py.md",
+    "code_status": "historical_utility_not_v2_audited",
+    "local_source": "tools/legacy/code.py",
+    "syntax": "passed"
+  },
+  {
+    "title": "probe_wq.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc94800b9229d93124c8368d",
+    "export": "docs/notion-export/probe_wq.py.md",
+    "code_status": "historical_utility_not_v2_audited",
+    "local_source": "tools/legacy/probe_wq.py",
+    "syntax": "passed"
+  },
+  {
+    "title": "forge2_vocabulary.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc9480118c86ddce76a002f1",
+    "export": "docs/notion-export/forge2_vocabulary.py.md",
+    "code_status": "validated_v2_overlay",
+    "local_source": "src/forge2_vocabulary.py"
+  },
+  {
+    "title": "Alpha Generator \u2014 Research-Backed Upgrade Plan (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc94802181eaf5ab0d030fb6",
+    "export": "docs/notion-export/Alpha Generator _ Research-Backed Upgrade Plan.md",
+    "code_status": "documentation"
+  },
+  {
+    "title": "evaluate_prescreener.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc948023853bf700a18451a3",
+    "export": "docs/notion-export/evaluate_prescreener.py.md",
+    "code_status": "historical_utility_not_v2_audited",
+    "local_source": "tools/legacy/evaluate_prescreener.py",
+    "syntax": "passed"
+  },
+  {
+    "title": "forge2_bandit.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc948023bbe6c2cb7b2349f1",
+    "export": "docs/notion-export/forge2_bandit.py.md",
+    "code_status": "validated_v2_overlay",
+    "local_source": "src/forge2_bandit.py"
+  },
+  {
+    "title": "test_alpha.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc94802db267c4e1e9640246",
+    "export": "docs/notion-export/test_alpha.py.md",
+    "code_status": "historical_utility_not_v2_audited",
+    "local_source": "tools/legacy/test_alpha.py",
+    "syntax": "passed"
+  },
+  {
+    "title": "forge2_campaign.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc948033ab96ce6f33d95395",
+    "export": "docs/notion-export/forge2_campaign.py.md",
+    "code_status": "validated_v2_overlay",
+    "local_source": "src/forge2_campaign.py"
+  },
+  {
+    "title": "review_winners.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc94803f80f7f50241b3ee80",
+    "export": "docs/notion-export/review_winners.py.md",
+    "code_status": "historical_utility_not_v2_audited",
+    "local_source": "tools/legacy/review_winners.py",
+    "syntax": "passed"
+  },
+  {
+    "title": "orchestrator.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc948042bbcac90058e64f70",
+    "export": "docs/notion-export/orchestrator.py.md",
+    "code_status": "validated_v2_overlay",
+    "local_source": "src/orchestrator.py"
+  },
+  {
+    "title": "Alpha Generation \u2014 Research Cross-Check & Upgrade Roadmap (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc948048bf6cdb2641dd48e0",
+    "export": "docs/notion-export/Alpha Generation _ Research Cross-Check _ Upgrade Roadmap.md",
+    "code_status": "documentation"
+  },
+  {
+    "title": "syntax_validator.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc948053b53febd65fae9ddb",
+    "export": "docs/notion-export/syntax_validator.py.md",
+    "code_status": "validated_v2_overlay",
+    "local_source": "src/syntax_validator.py"
+  },
+  {
+    "title": "seed_pool.json (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc948057be66c6787ebb3564",
+    "export": "docs/notion-export/seed_pool.json.md",
+    "code_status": "quarantined_invalid_mirror_asset",
+    "parse_error": "Expecting ',' delimiter: line 1984 column 109 (char 71788)"
+  },
+  {
+    "title": "forge2_catalog.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc94805a8f71c1b5093a2b55",
+    "export": "docs/notion-export/forge2_catalog.py.md",
+    "code_status": "validated_v2_overlay",
+    "local_source": "src/forge2_catalog.py"
+  },
+  {
+    "title": "BrainForge \u2014 Architectural Flaws & Loopholes Audit (Senior Quant) (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc94805c9d41de17d3126ff3",
+    "export": "docs/notion-export/BrainForge _ Architectural Flaws _ Loopholes Audit _Senior Quant_.md",
+    "code_status": "documentation"
+  },
+  {
+    "title": "hyper_tuner.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc948061b558f11f51034f35",
+    "export": "docs/notion-export/hyper_tuner.py.md",
+    "code_status": "historical_utility_not_v2_audited",
+    "syntax": "passed",
+    "local_source": "tools/legacy/hyper_tuner.py"
+  },
+  {
+    "title": "oos_deflation.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc94806285eeeb71d7614f1c",
+    "export": "docs/notion-export/oos_deflation.py.md",
+    "code_status": "validated_v2_overlay",
+    "local_source": "src/oos_deflation.py"
+  },
+  {
+    "title": "platform_snapshot.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc94806398feee13974596ea",
+    "export": "docs/notion-export/platform_snapshot.py.md",
+    "code_status": "quarantined_syntax_damaged_mirror",
+    "syntax": {
+      "line": 449,
+      "message": "closing parenthesis ']' does not match opening parenthesis '{' on line 448"
+    },
+    "local_source": "docs/legacy/platform_snapshot.py.txt"
+  },
+  {
+    "title": "Alpha Logic Upgrade \u2014 LLM & ML Integration Brainstorm (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc948064b489d9c05270fe3e",
+    "export": "docs/notion-export/Alpha Logic Upgrade _ LLM _ ML Integration Brainstorm.md",
+    "code_status": "documentation"
+  },
+  {
+    "title": "BrainForge \u2014 Alpha Submission Strategy & Decorrelation Selector (Senior Quant) (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc9480659581f0ef293d84bf",
+    "export": "docs/notion-export/BrainForge _ Alpha Submission Strategy _ Decorrelation Selector _Senior Quant_.md",
+    "code_status": "documentation"
+  },
+  {
+    "title": "BrainForge \u2014 Research-Backed Upgrade Review & Roadmap (Senior Quant) (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc948070a461e5fd31720ca8",
+    "export": "docs/notion-export/BrainForge _ Research-Backed Upgrade Review _ Roadmap _Senior Quant_.md",
+    "code_status": "documentation"
+  },
+  {
+    "title": "Generator Upgrade \u2014 Deep Research (Sept 2026) (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc948073821efdca2dc604b8",
+    "export": "docs/notion-export/Generator Upgrade _ Deep Research _Sept 2026_.md",
+    "code_status": "documentation"
+  },
+  {
+    "title": "db_manager.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc948073ba1beeb35b24467d",
+    "export": "docs/notion-export/db_manager.py.md",
+    "code_status": "validated_v2_overlay",
+    "local_source": "src/db_manager.py"
+  },
+  {
+    "title": "analyze_run.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc94807491c0c14f57b94a05",
+    "export": "docs/notion-export/analyze_run.py.md",
+    "code_status": "historical_utility_not_v2_audited",
+    "syntax": "passed",
+    "local_source": "tools/legacy/analyze_run.py"
+  },
+  {
+    "title": "forge2_smoke_test.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc94807a88ecefb6636dfbfa",
+    "export": "docs/notion-export/forge2_smoke_test.py.md",
+    "code_status": "validated_v2_overlay",
+    "local_source": "src/forge2_smoke_test.py"
+  },
+  {
+    "title": "submission_scout.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc94807abe23fb2ad7401f20",
+    "export": "docs/notion-export/submission_scout.py.md",
+    "code_status": "validated_v2_overlay",
+    "local_source": "src/submission_scout.py"
+  },
+  {
+    "title": "run_diagnostics.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc94807c9b67efb365adb1e2",
+    "export": "docs/notion-export/run_diagnostics.py.md",
+    "code_status": "validated_v2_overlay",
+    "local_source": "src/run_diagnostics.py"
+  },
+  {
+    "title": "README.md (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc94807e85e0d831a514a4f3",
+    "export": "docs/notion-export/README.md.md",
+    "code_status": "documentation"
+  },
+  {
+    "title": "Alpha Strategy Overhaul \u2014 Data-First Field Selection (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc948091b59bc3885c9297db",
+    "export": "docs/notion-export/Alpha Strategy Overhaul _ Data-First Field Selection.md",
+    "code_status": "documentation"
+  },
+  {
+    "title": "field_harvester.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc9480958b1afe6279e3d306",
+    "export": "docs/notion-export/field_harvester.py.md",
+    "code_status": "historical_utility_not_v2_audited",
+    "syntax": "passed",
+    "local_source": "tools/legacy/field_harvester.py"
+  },
+  {
+    "title": "inject_seeds.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc94809a8cafd56228d36d05",
+    "export": "docs/notion-export/inject_seeds.py.md",
+    "code_status": "historical_utility_not_v2_audited",
+    "syntax": "passed",
+    "local_source": "tools/legacy/inject_seeds.py"
+  },
+  {
+    "title": "BrainForge \u2014 Implementation Pack: Decorrelation Selector (SAFE) + Surrogate Pre-Screener (SHADOW) (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc94809eb802de6fc9a84d78",
+    "export": "docs/notion-export/BrainForge _ Implementation Pack_ Decorrelation Selector _SAFE_ _ Surrogate Pre-Screener _SHADOW_.md",
+    "code_status": "documentation"
+  },
+  {
+    "title": "operators.json (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc9480a18f37ca3d2cc6df13",
+    "export": "docs/notion-export/operators.json.md",
+    "code_status": "v2_overlay_preserved"
+  },
+  {
+    "title": "decorrelation_selector.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc9480a8a631f94b1e1caaf8",
+    "export": "docs/notion-export/decorrelation_selector.py.md",
+    "code_status": "validated_v2_overlay",
+    "local_source": "src/decorrelation_selector.py"
+  },
+  {
+    "title": "Master Prompt \u2014 Alpha Generator Research & Upgrade Review (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc9480afb88ccfff4f2acd72",
+    "export": "docs/notion-export/Master Prompt _ Alpha Generator Research _ Upgrade Review.md",
+    "code_status": "documentation"
+  },
+  {
+    "title": "config.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc9480b98d91f10f2b85c910",
+    "export": "docs/notion-export/config.py.md",
+    "code_status": "validated_v2_overlay",
+    "local_source": "src/config.py"
+  },
+  {
+    "title": "Earnings4 Dedicated Miner \u2014 Strategy & Architecture (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc9480c091a4c224771b02a8",
+    "export": "docs/notion-export/Earnings4 Dedicated Miner _ Strategy _ Architecture.md",
+    "code_status": "documentation"
+  },
+  {
+    "title": "forge2_config.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc9480c7aaabd2dd18d9ef18",
+    "export": "docs/notion-export/forge2_config.py.md",
+    "code_status": "validated_v2_overlay",
+    "local_source": "src/forge2_config.py"
+  },
+  {
+    "title": "llm_seed_generator.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc9480c7adcac20b40027b91",
+    "export": "docs/notion-export/llm_seed_generator.py.md",
+    "code_status": "validated_v2_overlay",
+    "local_source": "src/llm_seed_generator.py"
+  },
+  {
+    "title": "Brain Forge \u2014 New Architecture & CLI Review Brief (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc9480cb9dbbdf1ad6d663f2",
+    "export": "docs/notion-export/Brain Forge _ New Architecture _ CLI Review Brief.md",
+    "code_status": "documentation"
+  },
+  {
+    "title": "backfill_pnl.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc9480d68641c5d51c39bfc4",
+    "export": "docs/notion-export/backfill_pnl.py.md",
+    "code_status": "historical_utility_not_v2_audited",
+    "syntax": "passed",
+    "local_source": "tools/legacy/backfill_pnl.py"
+  },
+  {
+    "title": "Brain Forge \u2014 Context Handoff (Sept 2026) (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc9480d78cb8cb215b3cd43f",
+    "export": "docs/notion-export/Brain Forge _ Context Handoff _Sept 2026_.md",
+    "code_status": "documentation"
+  },
+  {
+    "title": "submit_to_worldquant.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc9480d88cfad956b6e0b952",
+    "export": "docs/notion-export/submit_to_worldquant.py.md",
+    "code_status": "validated_v2_overlay",
+    "local_source": "src/submit_to_worldquant.py"
+  },
+  {
+    "title": "surrogate_prescreener.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc9480e89325fe6c39a1bdfd",
+    "export": "docs/notion-export/surrogate_prescreener.py.md",
+    "code_status": "validated_v2_overlay",
+    "local_source": "src/surrogate_prescreener.py"
+  },
+  {
+    "title": "forge2_factory.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc9480efa88eeb33861f47e1",
+    "export": "docs/notion-export/forge2_factory.py.md",
+    "code_status": "validated_v2_overlay",
+    "local_source": "src/forge2_factory.py"
+  },
+  {
+    "title": "network_engine.py (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc9480f0a62bf7e65d5dc402",
+    "export": "docs/notion-export/network_engine.py.md",
+    "code_status": "validated_v2_overlay",
+    "local_source": "src/network_engine.py"
+  },
+  {
+    "title": "Run Diagnostics & Post-Mortem System \u2014 Design Spec (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc9480f2ae4bd00254d329ce",
+    "export": "docs/notion-export/Run Diagnostics _ Post-Mortem System _ Design Spec.md",
+    "code_status": "documentation"
+  },
+  {
+    "title": "requirements.txt (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc9480f491daed09b42c2975",
+    "export": "docs/notion-export/requirements.txt.md",
+    "code_status": "historical_mirror_extracted"
+  },
+  {
+    "title": "PROJECT_CONTEXT.md (1)",
+    "url": "https://app.notion.com/p/3d1ba36ddc9480f981b8eb54b6fa292c",
+    "export": "docs/notion-export/PROJECT_CONTEXT.md.md",
+    "code_status": "documentation"
+  },
+  {
+    "title": "BrainForge v2 \u2014 Lead-Quant Research & Implemented Generator Upgrade",
+    "url": "https://app.notion.com/p/6a758724d8824e029b0892642dcc79df",
+    "export": "docs/notion-export/BrainForge v2 _ Lead-Quant Research _ Implemented Generator Upgrade.md",
+    "code_status": "documentation"
+  }
+]

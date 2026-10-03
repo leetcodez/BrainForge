@@ -1,0 +1,10 @@
+# Historical utilities/providers; not exercised by the offline core suite.
+-r requirements-offline.txt
+google-generativeai==0.8.3
+optuna==3.6.1
+tabulate==0.9.0
+# Optional alternate providers/plotting backends: install only if needed.
+# openai
+# anthropic
+# lightgbm
+# matplotlib

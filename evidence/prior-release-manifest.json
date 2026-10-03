@@ -1,0 +1,223 @@
+{
+  "release": "BrainForge offline-evidence consultant generator upgrade",
+  "date": "2026-10-02",
+  "target": "Notion Python mirror; source overlay, not deployed or pushed",
+  "brain_requests": 0,
+  "changed_modules": [
+    {
+      "file": "config.py",
+      "kind": "modified"
+    },
+    {
+      "file": "db_manager.py",
+      "kind": "modified"
+    },
+    {
+      "file": "decorrelation_selector.py",
+      "kind": "modified"
+    },
+    {
+      "file": "forge2_bandit.py",
+      "kind": "modified"
+    },
+    {
+      "file": "forge2_build_catalog.py",
+      "kind": "added"
+    },
+    {
+      "file": "forge2_campaign.py",
+      "kind": "modified"
+    },
+    {
+      "file": "forge2_catalog.py",
+      "kind": "modified"
+    },
+    {
+      "file": "forge2_checks.py",
+      "kind": "added"
+    },
+    {
+      "file": "forge2_config.py",
+      "kind": "modified"
+    },
+    {
+      "file": "forge2_expression.py",
+      "kind": "added"
+    },
+    {
+      "file": "forge2_factory.py",
+      "kind": "modified"
+    },
+    {
+      "file": "forge2_migrate_offline.py",
+      "kind": "added"
+    },
+    {
+      "file": "forge2_offline_review.py",
+      "kind": "added"
+    },
+    {
+      "file": "forge2_policy.py",
+      "kind": "added"
+    },
+    {
+      "file": "forge2_queue.py",
+      "kind": "added"
+    },
+    {
+      "file": "forge2_smoke_test.py",
+      "kind": "modified"
+    },
+    {
+      "file": "forge2_statistics.py",
+      "kind": "added"
+    },
+    {
+      "file": "forge2_storage.py",
+      "kind": "added"
+    },
+    {
+      "file": "forge2_trials.py",
+      "kind": "added"
+    },
+    {
+      "file": "forge2_vocabulary.py",
+      "kind": "modified"
+    },
+    {
+      "file": "oos_deflation.py",
+      "kind": "modified"
+    },
+    {
+      "file": "orchestrator.py",
+      "kind": "modified"
+    },
+    {
+      "file": "submission_scout.py",
+      "kind": "modified"
+    },
+    {
+      "file": "submit_to_worldquant.py",
+      "kind": "modified"
+    },
+    {
+      "file": "surrogate_prescreener.py",
+      "kind": "modified"
+    }
+  ],
+  "baseline_sha256": {
+    "config.py": "8983174b14aa055b03b5714e70c46c9da4c90998595fa14fdf81f282c6a6b827",
+    "db_manager.py": "04acbcfd23851401e90d5ee7aa673c98722575a297ffebcaa23cd23feb371701",
+    "decorrelation_selector.py": "61630a2a07a7b0d61a852d20e1808881adfbfd972dfa8d3f2c01eda1d723ceb3",
+    "forge2_bandit.py": "037d9c57d756d93971e4d02fbdb59e0565882a3c6ddd4195608fb606d4449a0b",
+    "forge2_campaign.py": "6e23c61d235a33d663121faa5cdd4134cb58267dc8ed99f15a89b0b5540ea8c9",
+    "forge2_catalog.py": "0004c9c4fc8ee6b046853fc502fd472383e598121790eabdd8f2fe439d1e7d4c",
+    "forge2_config.py": "58a2f6f71d5a98ea7546b8d3f47bd3a13a0f209649358b9220f67bb93f5c819d",
+    "forge2_factory.py": "85f340859931ddb013f9dd8a408e3156ddc13f694fed4c742c72c86953cb0a60",
+    "forge2_smoke_test.py": "179cf088070ac61bd5ccac99994cfcb657a58a273d09035a6c1e37c05ed3920c",
+    "forge2_vocabulary.py": "e4865d55568e804ec99b5accabf23a11286c2e329c0d6ac161f84a566fa2023a",
+    "llm_seed_generator.py": "12491f6c89fddda96226a16829fa00ae78bff4ea6cfde6290093a90520f93391",
+    "network_engine.py": "d176bd6b987b8372787c551e6c833ac570275322297b36e62c62895e809f12b1",
+    "oos_deflation.py": "44a956e8514e90e82763d016922115711bf6b699ac92d4d72255a1393a6b9ef2",
+    "orchestrator.py": "dc25a4c8ecf541152fcb98dda72c66087ffe123e2d67a9f97cd2dcb71ffb62c4",
+    "run_diagnostics.py": "b1ce3d3b27fb3252a696854b6b83f88f259753ed6b7a8eab194319602bb0c56e",
+    "submission_scout.py": "dc8c730f23341450ce779c55e3268a23857813b7eb43bd55fcce6a862a6f5ee2",
+    "submit_to_worldquant.py": "05c528e254ecb373b35b848e0b6b4dc0e25bace64c1624ea054bf6a259f06a67",
+    "surrogate_prescreener.py": "0f7308a89e8ed6313f75117f50896328d27ca25984864988d78a1f0a2f3038d7",
+    "syntax_validator.py": "2f295c0a34cc7e1ae48fcd7ff1ff6c6de6ce1ae3a57f3098f9e099928aeda3f6"
+  },
+  "source_sha256": {
+    "config.py": "068de79c9049bcd4c734d60f81c58cddcd011d9734224b6e9bf69edd9cd7c707",
+    "db_manager.py": "ce98d298cffb86de36a266a4bba6e984a145576b9a93b3a734841cf28260e24f",
+    "decorrelation_selector.py": "a5193bb75489664c27a0b44d4edd850fc6d0ede0280dbc640886d00195bb791a",
+    "forge2_bandit.py": "64289351d69305fac2dae239ce4bf0415032ecf6810bc8606ba07757035bf433",
+    "forge2_build_catalog.py": "c27d8bcdaffe54ffcecd868db12773d84ed0ba70f46a9afc1b5c7148dd674795",
+    "forge2_campaign.py": "244c9f640d9f1015dedcb46799c9411dbe5699c6c9c7a027354e3a8e53689ad7",
+    "forge2_catalog.py": "972175f74ad289b9ddd87e28e76253ad2d2c8d0ad869b21bc84616480e1e2eb8",
+    "forge2_checks.py": "a9a3704f4a0a273ce87cf671d70b9b1dbdec8aa7b26a0e37f5874cefe8a36a38",
+    "forge2_config.py": "1a96124226d2bbe269e62efa18c62cbcf73691a6094bdb1e2c185b375ea99670",
+    "forge2_expression.py": "215dca7485159ce9e5be3b0c82cc02e5dd49191088b89bedef2808405d093ebe",
+    "forge2_factory.py": "82e9eaa6cd07479e7c8b658d142f6d57f4b3b1825a71f7933108fd9e5b69c951",
+    "forge2_migrate_offline.py": "ad80184fae43fd1aeaad81206acd45797481f33b634b47973ca094baaa58156f",
+    "forge2_offline_review.py": "3d0a7f465e1fa88907c2a9d50fa41abb954a5e8acbd0eb42cd846a96ba55c526",
+    "forge2_policy.py": "9d2895b1c603366ef6122cc2d01118e837a39d991872d0d629a8c4be2e75d62c",
+    "forge2_queue.py": "95d944612433f84efb333f85f857be5cdd2e8c92425eb1b1fd6e007c0cd5f916",
+    "forge2_smoke_test.py": "49086da74cec0543067f93a96281241b03d4d9f2a7680f0e5ae71fee4cc409ea",
+    "forge2_statistics.py": "2bd49f66f1b2587830a21691bb1bde608fa8a3a1f194298156dcf84a0ac8c763",
+    "forge2_storage.py": "b6442c88d99530def65726343b97432544266218a87cef26434b93ac5ce48e26",
+    "forge2_trials.py": "a0a1f5548e4e753b138c8d5fceaaa9e775f76a9e405d64d6e06e6d72df424d0c",
+    "forge2_vocabulary.py": "3fbb37e00018039ea662d1ff479160e204e4935859c1ec38869b58cfa5db19d5",
+    "llm_seed_generator.py": "12491f6c89fddda96226a16829fa00ae78bff4ea6cfde6290093a90520f93391",
+    "network_engine.py": "d176bd6b987b8372787c551e6c833ac570275322297b36e62c62895e809f12b1",
+    "oos_deflation.py": "07a36185dc2e4c521fe088528a19bb4940e1650020a901816ceae1d95d27777a",
+    "operators.json": "eadd8c1fb3630ad8be2bc1aeaf0ff931dceadeb4dc754c57a20c15003c1dc6b9",
+    "orchestrator.py": "16ba012e6666088b24971bda4e8b2c200211338a4aef149097b2c055e3c8e314",
+    "run_diagnostics.py": "b1ce3d3b27fb3252a696854b6b83f88f259753ed6b7a8eab194319602bb0c56e",
+    "submission_scout.py": "b771a0fb2ff97de02e1753568f0e85e92cc6da5e400deb025dc1b85a4109bc77",
+    "submit_to_worldquant.py": "a5c40d3ae74617b9b7ef4ab268c6a7c5ad8cbd3931ecb94be1afe77ee62760c7",
+    "surrogate_prescreener.py": "8bd64f07a79afcf3ee7b68097558e418357b10787b9c18955131b72627f9ff3a",
+    "syntax_validator.py": "2f295c0a34cc7e1ae48fcd7ff1ff6c6de6ce1ae3a57f3098f9e099928aeda3f6"
+  },
+  "source_pages": {
+    "forge2_config": "https://app.notion.com/p/3d1ba36ddc9480c7aaabd2dd18d9ef18",
+    "forge2_catalog": "https://app.notion.com/p/3d1ba36ddc94805a8f71c1b5093a2b55",
+    "forge2_vocabulary": "https://app.notion.com/p/3d1ba36ddc9480118c86ddce76a002f1",
+    "forge2_bandit": "https://app.notion.com/p/3d1ba36ddc948023bbe6c2cb7b2349f1",
+    "forge2_factory": "https://app.notion.com/p/3d1ba36ddc9480efa88eeb33861f47e1",
+    "forge2_campaign": "https://app.notion.com/p/3d1ba36ddc948033ab96ce6f33d95395",
+    "forge2_smoke_test": "https://app.notion.com/p/3d1ba36ddc94807a88ecefb6636dfbfa",
+    "orchestrator": "https://app.notion.com/p/3d1ba36ddc948042bbcac90058e64f70",
+    "config": "https://app.notion.com/p/3d1ba36ddc9480b98d91f10f2b85c910",
+    "network_engine": "https://app.notion.com/p/3d1ba36ddc9480f0a62bf7e65d5dc402",
+    "db_manager": "https://app.notion.com/p/3d1ba36ddc948073ba1beeb35b24467d",
+    "syntax_validator": "https://app.notion.com/p/3d1ba36ddc948053b53febd65fae9ddb",
+    "oos_deflation": "https://app.notion.com/p/3d1ba36ddc94806285eeeb71d7614f1c",
+    "llm_seed_generator": "https://app.notion.com/p/3d1ba36ddc9480c7adcac20b40027b91",
+    "submission_scout": "https://app.notion.com/p/3d1ba36ddc94807abe23fb2ad7401f20",
+    "submit_to_worldquant": "https://app.notion.com/p/3d1ba36ddc9480d88cfad956b6e0b952",
+    "decorrelation_selector": "https://app.notion.com/p/3d1ba36ddc9480a8a631f94b1e1caaf8",
+    "surrogate_prescreener": "https://app.notion.com/p/3d1ba36ddc9480e89325fe6c39a1bdfd",
+    "requirements": "https://app.notion.com/p/3d1ba36ddc9480f491daed09b42c2975",
+    "handoff": "https://app.notion.com/p/3d1ba36ddc9480d78cb8cb215b3cd43f",
+    "PROJECT_CONTEXT": "https://app.notion.com/p/3d1ba36ddc9480f981b8eb54b6fa292c",
+    "run_diagnostics": "https://app.notion.com/p/3d1ba36ddc94807c9b67efb365adb1e2"
+  },
+  "recorded_catalog": {
+    "fields": 122748,
+    "listing_occurrences": 1175654,
+    "regions_with_listing_rows": [
+      "ASI",
+      "CHN",
+      "EUR",
+      "GLB",
+      "HKG",
+      "IND",
+      "KOR",
+      "MEA",
+      "USA"
+    ],
+    "joint_axes": 43,
+    "conflicting_records": 31152,
+    "complete": false,
+    "sources": [
+      {
+        "file": "data-fields.json",
+        "sha256": "5d526be7de3d9601e1b4a6ba43f4c696f62fd197978228e88d4e3a68f699c0f8"
+      },
+      {
+        "file": "data-fields.json",
+        "sha256": "d2067664d5ec7a84f1a5e3595acb1f0d22b72b86a613614873c8b0dc59783fa9"
+      }
+    ],
+    "note": "Historical partial snapshots. Positive tuples only; no completeness claim."
+  },
+  "catalog_sha256": "2b84f948b5098bd0ff6a53841c7b32dab86626099525a670ace38f9d2aeb142b",
+  "validation": {
+    "pytest": 83,
+    "stress_outputs": 10000,
+    "stress_invalid": 0,
+    "recorded_smoke_checks": 54,
+    "patch_check": "passed",
+    "scope": "offline fixtures, saved metadata and structural checks, not financial efficacy"
+  }
+}

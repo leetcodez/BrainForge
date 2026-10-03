@@ -1,0 +1,120 @@
+{
+  "source": "synthetic stationary Gaussian AR(1), not platform or strategy-performance evidence",
+  "daily_true_sharpe": 0.05,
+  "observations_per_replication": 600,
+  "burn_in": 500,
+  "replicates_per_scenario": 200,
+  "confidence": 0.95,
+  "summary": [
+    {
+      "phi": -0.5,
+      "method": "IID",
+      "covered": 200,
+      "replicates": 200,
+      "coverage_percent": 100.0
+    },
+    {
+      "phi": -0.5,
+      "method": "HAC auto",
+      "covered": 195,
+      "replicates": 200,
+      "coverage_percent": 97.5
+    },
+    {
+      "phi": -0.5,
+      "method": "HAC 20",
+      "covered": 193,
+      "replicates": 200,
+      "coverage_percent": 96.5
+    },
+    {
+      "phi": 0.0,
+      "method": "IID",
+      "covered": 190,
+      "replicates": 200,
+      "coverage_percent": 95.0
+    },
+    {
+      "phi": 0.0,
+      "method": "HAC auto",
+      "covered": 189,
+      "replicates": 200,
+      "coverage_percent": 94.5
+    },
+    {
+      "phi": 0.0,
+      "method": "HAC 20",
+      "covered": 186,
+      "replicates": 200,
+      "coverage_percent": 93.0
+    },
+    {
+      "phi": 0.5,
+      "method": "IID",
+      "covered": 154,
+      "replicates": 200,
+      "coverage_percent": 77.0
+    },
+    {
+      "phi": 0.5,
+      "method": "HAC auto",
+      "covered": 182,
+      "replicates": 200,
+      "coverage_percent": 91.0
+    },
+    {
+      "phi": 0.5,
+      "method": "HAC 20",
+      "covered": 184,
+      "replicates": 200,
+      "coverage_percent": 92.0
+    },
+    {
+      "phi": 0.8,
+      "method": "IID",
+      "covered": 93,
+      "replicates": 200,
+      "coverage_percent": 46.5
+    },
+    {
+      "phi": 0.8,
+      "method": "HAC auto",
+      "covered": 158,
+      "replicates": 200,
+      "coverage_percent": 79.0
+    },
+    {
+      "phi": 0.8,
+      "method": "HAC 20",
+      "covered": 179,
+      "replicates": 200,
+      "coverage_percent": 89.5
+    }
+  ],
+  "raw_file": "/data/raw/brainforge-v2/synthetic_daily_returns.csv",
+  "independent_interval_check": "passed",
+  "assumptions": [
+    "Fixed process and fixed method settings declared before generation; no model/alpha selection.",
+    "HAC auto follows the implemented bandwidth rule; 20 lags is a predeclared sensitivity, not an optimized calibration.",
+    "Coverage is the fraction of 200 simulated intervals containing the known daily Sharpe; finite Monte Carlo uncertainty remains.",
+    "This does not validate BRAIN profitability, heavy-tail/regime robustness, or selection-adjusted inference."
+  ],
+  "comparison_plan": [
+    {
+      "grain": "method x AR coefficient",
+      "population": "200 complete independent synthetic paths per coefficient",
+      "unit": "percent interval coverage",
+      "derivation": "covered / complete replications * 100",
+      "finding": "Serial dependence exposes finite-sample bandwidth and IID-assumption limits.",
+      "disposition": "chart",
+      "reason": "Grouped coverage rates reveal different uncertainty behavior on identical paths."
+    },
+    {
+      "grain": "individual simulation",
+      "population": "same paths",
+      "unit": "daily Sharpe CI endpoints",
+      "disposition": "file",
+      "reason": "Audit detail, not a second visual finding."
+    }
+  ]
+}

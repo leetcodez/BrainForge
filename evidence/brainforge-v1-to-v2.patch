@@ -1,0 +1,1542 @@
+--- a/config.py
++++ b/config.py
+@@ -1,6 +1,12 @@
+ import json
+ import math
+ import os
++
++# This research release defaults to local-only transports, including standalone
++# scout/submission scripts. Remote execution requires a deliberate opt-in.
++RESEARCH_OFFLINE_ONLY = os.getenv("FORGE2_OFFLINE_ONLY", "1") != "0"
++NETWORK_REQUEST_TIMEOUT_SECS = 120.0
++NETWORK_MAX_TOTAL_ATTEMPTS = 20
+ import random
+ from collections import Counter, defaultdict
+ from pathlib import Path
+--- a/forge2_checks.py
++++ b/forge2_checks.py
+@@ -6,6 +6,7 @@
+ 
+ 
+ def finite(value):
++    if isinstance(value,bool):return None
+     try:
+         v=float(value)
+         return v if math.isfinite(v) else None
+--- a/forge2_config.py
++++ b/forge2_config.py
+@@ -163,7 +163,22 @@
+ # Offline-evidence-driven improvements. Legacy engine defaults remain unchanged.
+ FIELD_EXPLORATION_FRACTION = 0.30
+ THIRD_OBJECTIVE_ENABLED = os.getenv("FORGE2_THIRD_OBJECTIVE", "1") == "1"
++# Second-pass engineering controls: conservative budgets, explicit diagnostics.
++RESEARCH_OFFLINE_ONLY=os.getenv("FORGE2_OFFLINE_ONLY","1")!="0"
++MAX_DISPATCHES=int(os.getenv("FORGE2_MAX_DISPATCHES","0")) # 0: no inferred lifetime quota
++MAX_POLL_OPERATIONS=1000
++SEARCH_MAX_NODES=160
++SEARCH_MAX_CALLS=32
++SEARCH_MAX_DEPTH=18
++SEARCH_MAX_FIELDS=8
++SEARCH_MAX_WINDOW=1500
++BASKET_SELECTION_ENABLED=os.getenv("FORGE2_BASKET_SELECTION","1")=="1"
++BASKET_MAX_CORRELATION=.80
++BASKET_MIN_RESIDUAL=.10
++BASKET_DATASET_FRACTION=.40
++BASKET_EXPLORATION_FRACTION=.20
++BASKET_MIN_OVERLAP=60
+ _policy_files = sorted(Path(__file__).parent.glob("*.py"))
+ _policy_digest = hashlib.sha256(b"".join(p.read_bytes() for p in _policy_files if p.exists())).hexdigest()[:16]
+-FITNESS_POLICY_VERSION = "forge2-v3-offline-evidence-" + _policy_digest + "-third" + str(int(THIRD_OBJECTIVE_ENABLED))
++FITNESS_POLICY_VERSION = "forge2-v4-quant-research-" + _policy_digest + "-third" + str(int(THIRD_OBJECTIVE_ENABLED))
+ OVERRIDE_ENV.update({"WQ_VOCAB_ISOLATED":"1", "WQ_SEED_QUANT_FRACTION":"0"})
+--- /dev/null
++++ b/forge2_cscv.py
+@@ -0,0 +1,31 @@
++"""Bounded CSCV selection diagnostic for a FIXED synchronized return pool.
++Not chronological walk-forward deployability, not full adaptive-search PBO.
++"""
++import itertools,math
++import numpy as np
++from scipy.stats import rankdata
++
++
++def cscv_fixed_pool(values,blocks=8,max_partitions=1000):
++    x=np.asarray(values,dtype=float)
++    if x.ndim!=2 or x.shape[1]<2 or not np.isfinite(x).all():raise ValueError('Need a complete synchronized 2D return pool')
++    if type(blocks) is not int or blocks<4 or blocks%2 or x.shape[0]%blocks or x.shape[0]//blocks<5:raise ValueError('Need even equal time blocks with at least five rows; no silent trimming')
++    count=math.comb(blocks,blocks//2)
++    if count>max_partitions:raise ValueError('CSCV partition budget exceeded')
++    indices=np.arange(len(x)).reshape(blocks,-1);logits=[];selections=[];ties=0
++    for chosen in itertools.combinations(range(blocks),blocks//2):
++        other=[b for b in range(blocks) if b not in chosen]
++        train=x[indices[list(chosen)].ravel()];test=x[indices[other].ravel()]
++        train_sd=train.std(axis=0);test_sd=test.std(axis=0)
++        if np.any(train_sd<=1e-12) or np.any(test_sd<=1e-12):raise ValueError('Flat candidate in a partition; undefined ranks')
++        is_scores=train.mean(axis=0)/train_sd;oos_scores=test.mean(axis=0)/test_sd
++        winners=np.flatnonzero(is_scores==is_scores.max());winner=int(winners[0]);ties+=len(winners)>1
++        # Higher score receives higher ascending rank. M+1 avoids endpoints;
++        # median ties produce lambda=0 and are not counted as negative logits.
++        omega=float(rankdata(oos_scores,method='average')[winner]/(x.shape[1]+1))
++        logits.append(math.log(omega/(1-omega)));selections.append(winner)
++    return {'metric':'cscv_fixed_pool_pbo','fraction_negative_logits':sum(v<0 for v in logits)/len(logits),
++            'partitions':len(logits),'blocks':blocks,'pool_columns':x.shape[1],'observations':len(x),
++            'winner_columns':selections,'logits':logits,'is_tie_partitions':int(ties),
++            'tie_policy':'first column for IS ties, average OOS ranks; zero logit not negative',
++            'caveat':'Fixed preselected complete pool only; symmetric non-forward splits do not certify chronological deployability or count unrecorded adaptive trials'}
+--- /dev/null
++++ b/forge2_experiments.py
+@@ -0,0 +1,100 @@
++"""Durable local attempt state plus immutable events.
++Cannot make a remote POST and local SQLite commit atomic. A dispatch with no
++receipt is indeterminate and requires reconciliation, never an automatic repost.
++"""
++from __future__ import annotations
++import datetime,json,sqlite3,uuid,time
++from contextlib import contextmanager
++from pathlib import Path
++from forge2_search import candidate_identity
++
++
++class IndeterminateAttemptError(RuntimeError):pass
++
++
++class ExperimentLedger:
++    def __init__(self,path):
++        self.path=Path(path);self.path.parent.mkdir(parents=True,exist_ok=True)
++        with self.connect() as c:
++            c.execute('CREATE TABLE IF NOT EXISTS candidates(candidate_id TEXT PRIMARY KEY,payload TEXT NOT NULL,context TEXT NOT NULL)')
++            c.execute('CREATE TABLE IF NOT EXISTS attempts(attempt_id TEXT PRIMARY KEY,candidate_id TEXT NOT NULL UNIQUE,state TEXT NOT NULL,receipt TEXT,result TEXT)')
++            c.execute('CREATE TABLE IF NOT EXISTS events(sequence INTEGER PRIMARY KEY,attempt_id TEXT NOT NULL,kind TEXT NOT NULL,body TEXT NOT NULL,created_at TEXT NOT NULL)')
++            c.execute("CREATE TRIGGER IF NOT EXISTS events_no_update BEFORE UPDATE ON events BEGIN SELECT RAISE(ABORT,'Events are immutable'); END")
++            c.execute("CREATE TRIGGER IF NOT EXISTS events_no_delete BEFORE DELETE ON events BEGIN SELECT RAISE(ABORT,'Events are immutable'); END")
++    @contextmanager
++    def connect(self):
++        c=sqlite3.connect(self.path,timeout=30);c.row_factory=sqlite3.Row
++        c.execute('PRAGMA busy_timeout=30000');c.execute('PRAGMA synchronous=FULL')
++        try:
++            with c:yield c
++        finally:c.close()
++    @staticmethod
++    def _event(c,attempt,kind,body):
++        c.execute('INSERT INTO events(attempt_id,kind,body,created_at) VALUES(?,?,?,?)',
++            (attempt,kind,json.dumps(body,sort_keys=True,allow_nan=False),datetime.datetime.now(datetime.timezone.utc).isoformat()))
++    def prepare(self,payload,context,lineage=None):
++        cid=candidate_identity(payload,context)
++        with self.connect() as c:
++            c.execute('BEGIN IMMEDIATE')
++            c.execute('INSERT OR IGNORE INTO candidates VALUES(?,?,?)',(cid,json.dumps(payload,sort_keys=True,allow_nan=False),json.dumps(context,sort_keys=True,allow_nan=False)))
++            row=c.execute('SELECT * FROM attempts WHERE candidate_id=?',(cid,)).fetchone()
++            if row is None:
++                aid=uuid.uuid4().hex
++                c.execute('INSERT INTO attempts VALUES(?,?,?,NULL,NULL)',(aid,cid,'prepared'))
++                self._event(c,aid,'prepared',{'candidate_id':cid,'lineage':lineage or {}})
++                row=c.execute('SELECT * FROM attempts WHERE attempt_id=?',(aid,)).fetchone()
++            return dict(row)
++    def transition(self,attempt,expected,state,body=None):
++        with self.connect() as c:
++            c.execute('BEGIN IMMEDIATE')
++            row=c.execute('SELECT * FROM attempts WHERE attempt_id=?',(attempt,)).fetchone()
++            if row is None or row['state'] not in expected:raise ValueError('Invalid or concurrent attempt transition')
++            receipt=row['receipt'];result=row['result']
++            if state in ('accepted','remote_complete'):receipt=json.dumps(body,allow_nan=False)
++            if state=='completed':result=json.dumps(body,allow_nan=False)
++            c.execute('UPDATE attempts SET state=?,receipt=?,result=? WHERE attempt_id=?',(state,receipt,result,attempt))
++            self._event(c,attempt,state,body or {})
++    def dispatch(self,attempt,max_dispatches=0):
++        with self.connect() as c:
++            c.execute('BEGIN IMMEDIATE')
++            row=c.execute('SELECT state FROM attempts WHERE attempt_id=?',(attempt,)).fetchone()
++            if row is None or row['state']!='prepared':raise ValueError('Invalid/concurrent dispatch transition')
++            used=c.execute("SELECT COUNT(*) FROM events WHERE kind='dispatching'").fetchone()[0]
++            if max_dispatches and used>=max_dispatches:raise IndeterminateAttemptError('Local dispatch budget exhausted; prepared candidate not sent')
++            c.execute("UPDATE attempts SET state='dispatching' WHERE attempt_id=?",(attempt,))
++            self._event(c,attempt,'dispatching',{'dispatch_index':used+1})
++    def accept(self,attempt,poll_url,deadline_epoch=None):
++        if not poll_url:raise ValueError('Accepted attempt requires a poll receipt')
++        self.transition(attempt,{'dispatching'},'accepted',{'poll_url':poll_url,'deadline_epoch':deadline_epoch})
++    def reserve_poll(self,attempt,max_operations=1000):
++        expired=False
++        with self.connect() as c:
++            c.execute('BEGIN IMMEDIATE')
++            row=c.execute('SELECT * FROM attempts WHERE attempt_id=?',(attempt,)).fetchone()
++            if row is None or row['state']!='accepted':raise IndeterminateAttemptError('No accepted pollable attempt')
++            receipt=json.loads(row['receipt']);deadline=receipt.get('deadline_epoch')
++            count=c.execute("SELECT COUNT(*) FROM events WHERE attempt_id=? AND kind='poll_reserved'",(attempt,)).fetchone()[0]
++            expired=(deadline is None or time.time()>=deadline or count>=max_operations)
++            if expired:
++                c.execute("UPDATE attempts SET state='expired_unresolved' WHERE attempt_id=?",(attempt,))
++                self._event(c,attempt,'expired_unresolved',{'reason':'missing/expired deadline or poll-operation budget','operations':count})
++            else:self._event(c,attempt,'poll_reserved',{'index':count+1})
++        if expired:raise IndeterminateAttemptError('Polling deadline/budget closed; remote work unresolved, do not repost')
++
++    def reconcile_completed_alpha(self,attempt,alpha_id,reason):
++        if not alpha_id or not reason:raise ValueError('Recorded completed alpha ID and reconciliation reason required')
++        self.transition(attempt,{'dispatching','expired_unresolved'},'remote_complete',{'alpha_id':alpha_id,'reconciliation_reason':reason})
++
++    def remote_complete(self,attempt,alpha_id):
++        if not alpha_id:raise ValueError('Missing completed alpha ID')
++        self.transition(attempt,{'accepted'},'remote_complete',{'alpha_id':alpha_id})
++    def complete(self,attempt,result,metrics):self.transition(attempt,{'remote_complete'},'completed',{'result':result,'metrics':metrics})
++    def reject(self,attempt,reason):self.transition(attempt,{'dispatching','accepted'},'failed',{'reason':reason})
++    def reconcile_receipt(self,attempt,poll_url,reason,deadline_epoch=None):
++        if not poll_url or not reason:raise ValueError('Recorded receipt and reconciliation reason required')
++        self.transition(attempt,{'dispatching'},'accepted',{'poll_url':poll_url,'reconciliation_reason':reason,'deadline_epoch':deadline_epoch})
++    def summary(self):
++        with self.connect() as c:
++            return {'states':{r['state']:r['n'] for r in c.execute('SELECT state,COUNT(*) n FROM attempts GROUP BY state')},
++                    'events':c.execute('SELECT COUNT(*) FROM events').fetchone()[0],
++                    'caveat':'dispatching without a receipt is indeterminate, not a failed alpha or permission to retry'}
+--- a/forge2_factory.py
++++ b/forge2_factory.py
+@@ -108,6 +108,21 @@
+     config.THIRD_OBJECTIVE_ENABLED = F2.THIRD_OBJECTIVE_ENABLED
+     config.SURROGATE_PRIORITIZATION_ENABLED = True
+     config.DEFLATION_MAX_TRIALS = 0
++    config.SAFE_SIMULATION_WRITES = True
++    config.RESEARCH_OFFLINE_ONLY=F2.RESEARCH_OFFLINE_ONLY
++    config.MAX_DISPATCHES=F2.MAX_DISPATCHES
++    config.MAX_POLL_OPERATIONS=F2.MAX_POLL_OPERATIONS
++    config.SEARCH_MAX_NODES=F2.SEARCH_MAX_NODES
++    config.SEARCH_MAX_CALLS=F2.SEARCH_MAX_CALLS
++    config.SEARCH_MAX_DEPTH=F2.SEARCH_MAX_DEPTH
++    config.SEARCH_MAX_FIELDS=F2.SEARCH_MAX_FIELDS
++    config.SEARCH_MAX_WINDOW=F2.SEARCH_MAX_WINDOW
++    config.BASKET_SELECTION_ENABLED=F2.BASKET_SELECTION_ENABLED
++    config.BASKET_MAX_CORRELATION=F2.BASKET_MAX_CORRELATION
++    config.BASKET_MIN_RESIDUAL=F2.BASKET_MIN_RESIDUAL
++    config.BASKET_DATASET_FRACTION=F2.BASKET_DATASET_FRACTION
++    config.BASKET_EXPLORATION_FRACTION=F2.BASKET_EXPLORATION_FRACTION
++    config.BASKET_MIN_OVERLAP=F2.BASKET_MIN_OVERLAP
+     observed = resolver.meta.get("observed_universes") or []
+     if observed:
+         config.UNIVERSES = list(observed)
+@@ -124,6 +139,8 @@
+     resolver = PyramidResolver(meta_path)
+     config = orchestrator.config
+     configure_evidence(config,resolver)
++    from forge2_policy import fingerprint,guard
++    current=fingerprint(config,resolver.meta.get("catalog_hash"),os.getenv("WQ_OPERATORS_PATH",F2.OPERATORS_PATH))
+ 
+     class Forge2Factory(orchestrator.AlphaFactory):
+         """AlphaFactory with the pyramid-multiplier objective (finding #2)."""
+@@ -131,6 +148,12 @@
+         def __init__(self):
+             super().__init__()
+             self.preflight_rejections = Counter()
++            from forge2_experiments import ExperimentLedger
++            self.experiment_ledger=ExperimentLedger(self.db.db_name+".experiments.sqlite")
++            self.experiment_context={"catalog":resolver.meta.get("catalog_hash"),
++                "identity_version":"syntax_preserving_v2","operators":__import__("hashlib").sha256(json.dumps(current["policy"]["operator_schema"],sort_keys=True).encode()).hexdigest(),
++                "region":config.DEFAULT_REGION,"delay":config.DEFAULT_DELAY}
++            self.scoring_policy_hash=current["fingerprint"]
+             self.trial_ledger = None
+             ledger_path=os.getenv("FORGE2_TRIAL_LEDGER")
+             if ledger_path:
+@@ -144,6 +167,9 @@
+             ok, canonical=SyntaxValidator.parse_and_validate(expression)
+             errors=[] if ok and not SyntaxValidator.is_tautology(canonical) else ["INVALID_SYNTAX_OR_TAUTOLOGY"]
+             errors += type_errors(expression,resolver.field_metadata)
++            from forge2_search import budget_errors
++            errors += budget_errors(expression,config.SEARCH_MAX_NODES,config.SEARCH_MAX_CALLS,
++                config.SEARCH_MAX_DEPTH,config.SEARCH_MAX_FIELDS,config.SEARCH_MAX_WINDOW)
+             if decay not in config.DECAYS:
+                 errors.append("OUTSIDE_CONFIGURED_DECAY_GRID")
+             for token in set(field_tokens(expression)) - BUILTIN_GROUPS:
+@@ -158,7 +184,7 @@
+                     self.preflight_rejections[error.split(":")[0]] += 1
+                 self._remember_failure(expression,"preflight:"+";".join(errors))
+                 return orchestrator.SimulationResult(expression=expression,universe=universe,decay=decay,valid=False)
+-            return await super()._simulate_alpha(expression,universe,decay)
++            return await super()._simulate_alpha(canonical,universe,decay)
+ 
+         def _nsga_ii_sort(self, population):
+             for rec in population:
+--- /dev/null
++++ b/forge2_inference.py
+@@ -0,0 +1,103 @@
++"""Offline inference on explicit daily arithmetic excess RETURNS, not dollar PnL.
++HAC delta-method Sharpe uncertainty and overlapping moving-block bootstrap.
++Neither output corrects selection bias, proves stationarity, or replaces holdout.
++"""
++from __future__ import annotations
++import math
++import numpy as np
++from scipy.stats import norm
++
++
++def _sample(values,min_observations=30):
++    x=np.asarray(values,dtype=float)
++    if x.ndim!=1 or len(x)<min_observations or not np.isfinite(x).all():
++        raise ValueError('Need a finite 1D series with sufficient observations; missing rows cannot be silently dropped')
++    sigma=float(x.std(ddof=0))
++    if sigma<=1e-12:raise ValueError('Sharpe inference is undefined for a flat series')
++    return x,float(x.mean()),sigma
++
++
++def sharpe_inference(values,periods_per_year=252,lags=None,confidence=.95):
++    x,mu,sigma=_sample(values)
++    if not 0<confidence<1 or periods_per_year<=0:raise ValueError('Invalid confidence/annualization')
++    n=len(x);sr=mu/sigma
++    if lags is None:lags=int(math.floor(4*(n/100)**(2/9)))
++    if type(lags) is not int or not 0<=lags<n:raise ValueError('Invalid HAC lag count')
++    z=(x-mu)/sigma
++    influence=z-.5*sr*(z*z-1)
++    influence-=influence.mean()
++    gamma0=float(influence@influence/n)
++    lrv=gamma0+2*sum((1-k/(lags+1))*float(influence[k:]@influence[:-k]/n) for k in range(1,lags+1))
++    if lrv < -1e-10:raise ValueError('Negative long-run variance')
++    se=math.sqrt(max(lrv,0)/n);critical=float(norm.ppf((1+confidence)/2))
++    scale=math.sqrt(periods_per_year)
++    return {'metric':'hac_delta_method_sharpe','n':n,'lags':lags,'daily_sharpe':sr,
++            'annualized_scaling_proxy':sr*scale,'daily_standard_error':se,
++            'iid_standard_error':math.sqrt(gamma0/n),
++            'daily_interval':[sr-critical*se,sr+critical*se],
++            'annualized_scaling_interval':[(sr-critical*se)*scale,(sr+critical*se)*scale],
++            'confidence':confidence,'unit':'daily arithmetic excess return',
++            'caveat':'sqrt-time annualization is a scaling proxy under serial dependence; CI is asymptotic, conditional on chosen lag, not selection-adjusted'}
++
++
++def moving_block_sharpe(values,block_length=None,resamples=1000,seed=20261002,confidence=.95):
++    x,mu,sigma=_sample(values);n=len(x)
++    if block_length is None:block_length=max(2,round(n**(1/3)))
++    if type(block_length) is not int or not 1<=block_length<=n//4:raise ValueError('Block length must leave at least four blocks')
++    if type(resamples) is not int or resamples<200 or not 0<confidence<1:raise ValueError('Need at least 200 resamples and valid confidence')
++    rng=np.random.default_rng(seed);k=math.ceil(n/block_length)
++    offsets=np.arange(block_length);estimates=[]
++    for _ in range(resamples):
++        starts=rng.integers(0,n-block_length+1,size=k)
++        draw=x[(starts[:,None]+offsets).ravel()[:n]]
++        sd=float(draw.std(ddof=0))
++        if sd>1e-12:estimates.append(float(draw.mean()/sd))
++    if len(estimates)<.95*resamples:raise ValueError('Too many degenerate bootstrap draws')
++    tail=(1-confidence)/2
++    return {'metric':'overlapping_moving_block_sharpe','daily_sharpe':mu/sigma,'n':n,
++            'block_length':block_length,'resamples':resamples,'valid_draws':len(estimates),'seed':seed,
++            'daily_percentile_interval':np.quantile(estimates,[tail,1-tail]).tolist(),
++            'confidence':confidence,'caveat':'Dependent-data diagnostic under local stationarity; percentile coverage is approximate, block choice matters, not a multiple-testing correction'}
++
++
++def paired_sharpe_inference(a,b,lags=None,confidence=.95):
++    """HAC uncertainty of a paired daily Sharpe difference on the SAME rows."""
++    a,ma,sa=_sample(a);b,mb,sb=_sample(b)
++    if len(a)!=len(b):raise ValueError('Paired returns must share identical aligned observations')
++    if not 0<confidence<1:raise ValueError('Invalid confidence')
++    n=len(a);sr_a=ma/sa;sr_b=mb/sb
++    if lags is None:lags=int(math.floor(4*(n/100)**(2/9)))
++    if type(lags) is not int or not 0<=lags<n:raise ValueError('Invalid HAC lag count')
++    za=(a-ma)/sa;zb=(b-mb)/sb
++    psi=(za-.5*sr_a*(za*za-1))-(zb-.5*sr_b*(zb*zb-1));psi-=psi.mean()
++    lrv=float(psi@psi/n)+2*sum((1-k/(lags+1))*float(psi[k:]@psi[:-k]/n) for k in range(1,lags+1))
++    if lrv < -1e-10:raise ValueError('Negative paired long-run variance')
++    se=math.sqrt(max(0,lrv)/n);difference=sr_a-sr_b;z=float(norm.ppf((1+confidence)/2))
++    return {'metric':'paired_conditional_hac_sharpe_difference','daily_difference':difference,'standard_error':se,
++            'interval':[difference-z*se,difference+z*se],'lags':lags,'n':n,'confidence':confidence,
++            'status':'degenerate_identical_estimand' if se<=1e-12 else 'estimated',
++            'caveat':'Fixed paired strategies, aligned daily excess returns, not adaptive-selection correction'}
++
++
++def paired_block_sharpe(a,b,block_length=None,resamples=500,seed=20261002,lags=None,confidence=.95):
++    """Synchronized overlapping block bootstrap-t for a fixed paired contrast."""
++    a,_,_=_sample(a);b,_,_=_sample(b);base=paired_sharpe_inference(a,b,lags,confidence);n=len(a)
++    if block_length is None:block_length=max(2,round(n**(1/3)))
++    if type(block_length) is not int or not 1<=block_length<=n//4 or resamples<200:raise ValueError('Invalid bootstrap controls')
++    if base['standard_error']<=1e-12:
++        return {'metric':'paired_studentized_moving_block_sharpe','status':'degenerate_contrast',
++                'interval':[base['daily_difference']]*2,'valid_draws':0,'seed':seed}
++    rng=np.random.default_rng(seed);offsets=np.arange(block_length);statistics=[]
++    for _ in range(resamples):
++        starts=rng.integers(0,n-block_length+1,size=math.ceil(n/block_length));indices=(starts[:,None]+offsets).ravel()[:n]
++        try:replicate=paired_sharpe_inference(a[indices],b[indices],base['lags'],confidence)
++        except ValueError:continue
++        if replicate['standard_error']>1e-12:
++            statistics.append((replicate['daily_difference']-base['daily_difference'])/replicate['standard_error'])
++    if len(statistics)<.95*resamples:raise ValueError('Too many degenerate studentized replicates')
++    tail=(1-confidence)/2;lo,hi=np.quantile(statistics,[tail,1-tail])
++    return {'metric':'paired_studentized_moving_block_sharpe','daily_difference':base['daily_difference'],
++            'interval':[base['daily_difference']-float(hi)*base['standard_error'],base['daily_difference']-float(lo)*base['standard_error']],
++            'block_length':block_length,'resamples':resamples,'valid_draws':len(statistics),'seed':seed,
++            'confidence':confidence,'lags':base['lags'],'status':'estimated',
++            'caveat':'Shared sampled rows preserve cross-strategy dependence; bootstrap coverage approximate and block/lag sensitive, not a p-value or selection-bias cure'}
+--- a/forge2_migrate_offline.py
++++ b/forge2_migrate_offline.py
+@@ -15,7 +15,7 @@
+ import config
+ from db_manager import DatabaseManager
+ from forge2_catalog import CatalogIndex
+-from forge2_checks import parse_checks
++from forge2_checks import parse_checks,finite
+ from forge2_expression import field_tokens, BUILTIN_GROUPS
+ from forge2_factory import PyramidResolver, configure_evidence, apply_config_overrides
+ from forge2_storage import atomic_json
+@@ -103,15 +103,16 @@
+             # qualification only when raw check evidence still supports it.
+             metrics=checks.get(row.get('alpha_id'),{})
+             min_fitness=config.MIN_FITNESS_DELAY0 if int(delay)==0 else config.MIN_FITNESS
+-            corr=row.get('max_correlation')
++            corr=finite(row.get('max_correlation'))
++            drawdown=finite(metrics.get('drawdown'));margin=finite(metrics.get('margin'))
+             risk=(not config.DRAWDOWN_MARGIN_GATE_ENABLED or
+-                  ((config.MAX_DRAWDOWN is None or abs(metrics.get('drawdown') or 0)<=config.MAX_DRAWDOWN)
+-                   and (config.MIN_MARGIN is None or (metrics.get('margin') or 0)>=config.MIN_MARGIN)))
++                  ((config.MAX_DRAWDOWN is None or (drawdown is not None and abs(drawdown)<=config.MAX_DRAWDOWN))
++                   and (config.MIN_MARGIN is None or (margin is not None and margin>=config.MIN_MARGIN))))
+             qualified=int(bool(row.get('is_qualified') and evidence.verified and not evidence.failed
+                        and row['sharpe']>=config.MIN_SHARPE
+                        and config.MIN_TURNOVER<=row['turnover']<=config.MAX_TURNOVER
+                        and config.worldquant_fitness(row['sharpe'],row.get('returns') or 0,row['turnover'])>=min_fitness
+-                       and corr is not None and corr<=config.MAX_SELF_CORRELATION and risk))
++                       and corr is not None and 0<=corr<=config.MAX_SELF_CORRELATION and risk))
+             con.execute('UPDATE alpha_population SET legacy_fitness=fitness,fitness=?,is_qualified=?,failed_checks=? WHERE id=?',
+                         (fitness,qualified,fail,row['id']))
+             valid,_=catalog.validate_expression(row['expression'],region,int(delay),row['universe'])
+--- a/forge2_policy.py
++++ b/forge2_policy.py
+@@ -15,7 +15,7 @@
+         raise TypeError
+     excluded={'CHECKPOINT_PATH','SEED_POOL_PATH','WQ_BASE_URL','LLM_API_KEY','GEMINI_API_KEY',
+               'OPENAI_API_KEY','ANTHROPIC_API_KEY','DATA_DICTIONARY','FIELD_GROUPS','FIELD_METADATA',
+-              'SEMANTIC_ACTIVE_FIELDS','FIELD_CATALOG_PATH','SESSION_CACHE_PATH','REAUTH_FLAG_PATH','SURROGATE_MODEL_PATH'}
++              'SEMANTIC_ACTIVE_FIELDS','FIELD_CATALOG_PATH','SESSION_CACHE_PATH','REAUTH_FLAG_PATH','SURROGATE_MODEL_PATH','MAX_DISPATCHES','MAX_POLL_OPERATIONS'}
+     runtime={}
+     for name,value in vars(config).items():
+         if not name.isupper() or name.startswith('_') or name in excluded or any(s in name for s in ('PASSWORD','SECRET','TOKEN','API_KEY','CREDENTIAL')):continue
+--- /dev/null
++++ b/forge2_portfolio.py
+@@ -0,0 +1,112 @@
++"""Evidence-aware search-basket diversification, NOT investable capital weights.
++Uses aligned cumulative-PnL intervals, raw abs-correlation redundancy checks,
++Ledoit-Wolf shrunk correlation for conditional residual novelty, and dataset caps.
++All measures are in-sample diagnostics; missing evidence is never independence.
++"""
++from __future__ import annotations
++import math
++import numpy as np
++from sklearn.covariance import LedoitWolf
++from forge2_statistics import daily_changes
++from forge2_expression import field_tokens
++
++
++def dataset_members(expression,metadata):
++    return sorted({metadata[t]['dataset'] for t in field_tokens(expression)
++                   if t in metadata and metadata[t].get('type')!='GROUP' and metadata[t].get('dataset')})
++
++
++def residual_fraction(raw,shrunk,i,ids,ridge):
++    """Residual variance on RAW training covariance with shrunk-ridge coefficients.
++    The ridge Schur shortcut and injected identity are not measured novelty.
++    """
++    if not ids:return 1.0
++    coefficients=np.linalg.solve(shrunk[np.ix_(ids,ids)]+ridge*np.eye(len(ids)),shrunk[i,ids])
++    value=1-2*coefficients@raw[i,ids]+coefficients@raw[np.ix_(ids,ids)]@coefficients
++    if not np.isfinite(value) or value < -1e-8:raise ValueError('Invalid residual variance')
++    return max(0.0,float(value))
++
++def raw_subspace_fraction(x,i,ids,tolerance=1e-10):
++    if not ids:return 1.0
++    coefficients=np.linalg.lstsq(x[:,ids],x[:,i],rcond=tolerance)[0]
++    return float(np.mean((x[:,i]-x[:,ids]@coefficients)**2)/np.mean(x[:,i]**2))
++
++def select_basket(ordered,series_by_id,metadata,size,min_overlap=60,max_abs_correlation=.8,
++                  min_residual_fraction=.1,max_dataset_fraction=.4,explore_fraction=.2,ridge=1e-6):
++    ordered=list(ordered)
++    if size<1 or min_overlap<10 or not 0<max_abs_correlation<1 or not 0<=min_residual_fraction<=1 or not 0<max_dataset_fraction<=1 or not 0<=explore_fraction<1 or ridge<=0:
++        raise ValueError('Invalid basket constraints')
++    report={'metric':'search_basket_diversity','selected':[],'verified':[],'exploration':[],
++            'rejections':{},'common_intervals':0,'shrinkage':None,'reason':None,
++            'caveat':'Standardized PnL interval diagnostics, not capital weights or independent bets; thresholds are engineering controls, not significance tests'}
++    # This module refuses cross-universe pooling. Engine passes one primary
++    # universe basket; the offline reviewer groups regimes explicitly.
++    regimes={(r.get('region'),r.get('delay'),r.get('universe')) for r in ordered}
++    if len(regimes)>1:raise ValueError('Basket must have one region/delay/universe regime')
++    diffs={r['alpha_id']:daily_changes(series_by_id[r['alpha_id']]) for r in ordered
++           if r.get('alpha_id') in series_by_id}
++    eligible=[r for r in ordered if len(diffs.get(r.get('alpha_id'),{}))>=min_overlap]
++    common=sorted(set.intersection(*(set(diffs[r['alpha_id']]) for r in eligible))) if eligible else []
++    report['common_intervals']=len(common)
++    if len(eligible)<2 or len(common)<min_overlap:
++        report['reason']='insufficient_common_evidence; base ranking retained, diversity unverified'
++        report['exploration']=[r.get('alpha_id') for r in ordered[:size]]
++        report['selected']=report['exploration'][:]
++        return ordered[:size],report
++    x=np.column_stack([[diffs[r['alpha_id']][d] for d in common] for r in eligible])
++    sd=x.std(axis=0);keep=np.flatnonzero(sd>1e-12)
++    eligible=[eligible[i] for i in keep];x=x[:,keep]
++    if len(eligible)<2:
++        report['reason']='flat_series; base ranking retained, diversity unverified'
++        report['exploration']=[r.get('alpha_id') for r in ordered[:size]];report['selected']=report['exploration'][:]
++        return ordered[:size],report
++    x=(x-x.mean(axis=0))/x.std(axis=0)
++    raw=np.corrcoef(x,rowvar=False);estimate=LedoitWolf().fit(x);cov=estimate.covariance_
++    diagonal=np.sqrt(np.diag(cov));shrunk=cov/np.outer(diagonal,diagonal)
++    report['shrinkage']=float(estimate.shrinkage_)
++    indices={r['alpha_id']:i for i,r in enumerate(eligible)}
++    reserve=min(size-1,math.ceil(size*explore_fraction));core_target=size-reserve
++    family_cap=max(1,math.ceil(size*max_dataset_fraction));counts={};selected=[];ids=[]
++    for r in eligible:
++        aid=r['alpha_id'];i=indices[aid];families=dataset_members(r['expression'],metadata)
++        if not families:
++            report['rejections'][aid]='unknown_dataset_attribution';continue
++        if any(counts.get(f,0)>=family_cap for f in families):
++            report['rejections'][aid]='dataset_budget';continue
++        if ids and max(abs(raw[i,j]) for j in ids)>max_abs_correlation:
++            report['rejections'][aid]='absolute_return_redundancy';continue
++        raw_residual=raw_subspace_fraction(x,i,ids)
++        if raw_residual<max(1e-10,min_residual_fraction):
++            report['rejections'][aid]='raw_linear_subspace_redundancy';continue
++        residual=1.0
++        if ids:
++            residual=residual_fraction(raw,shrunk,i,ids,ridge)
++        if residual<min_residual_fraction:
++            report['rejections'][aid]='low_conditional_residual_novelty';continue
++        report['verified'].append({'alpha_id':aid,'residual_fraction':residual,'datasets':families,'raw_subspace_fraction':raw_residual})
++        selected.append(r);ids.append(i)
++        for f in families:counts[f]=counts.get(f,0)+1
++        if len(selected)>=core_target:break
++    # Explicit exploration reserve may have unknown return evidence, but never
++    # includes a known duplicate or a known budget violation. It is not labeled
++    # verified diversity and does not alter any platform qualification gate.
++    chosen={r['alpha_id'] for r in selected}
++    for r in ordered:
++        aid=r.get('alpha_id')
++        if aid in chosen or aid in report['rejections']:continue
++        families=dataset_members(r['expression'],metadata)
++        if families and any(counts.get(f,0)>=family_cap for f in families):continue
++        if aid in indices and ids:
++            i=indices[aid]
++            if max(abs(raw[i,j]) for j in ids)>max_abs_correlation:continue
++            if raw_subspace_fraction(x,i,ids)<max(1e-10,min_residual_fraction):continue
++            residual=residual_fraction(raw,shrunk,i,ids,ridge)
++            if residual<min_residual_fraction:continue
++        if len(report['exploration'])>=reserve:break
++        selected.append(r);chosen.add(aid);report['exploration'].append(aid)
++        if aid in indices:ids.append(indices[aid])
++        for f in families:counts[f]=counts.get(f,0)+1
++    report['selected']=[r.get('alpha_id') for r in selected]
++    report['dataset_counts']=counts
++    report['reason']='measured_core_plus_explicit_exploration'
++    return selected,report
+--- /dev/null
++++ b/forge2_protocol.py
+@@ -0,0 +1,110 @@
++"""Registered chronological research folds, disjoint final holdout, and sealing.
++A local registration disciplines future work; it cannot make previously viewed
++history untouched. No returns from holdout are exposed by development folds.
++"""
++from __future__ import annotations
++import hashlib,json,datetime,sqlite3
++from pathlib import Path
++from forge2_storage import atomic_json
++
++
++def forward_folds(dates,min_train=126,test_size=63,gap=5,holdout_size=126,label_horizon=1,max_lookback=1):
++    dates=[str(d) for d in dates]
++    if len(set(dates))!=len(dates) or dates!=sorted(dates):raise ValueError('Dates must be unique chronological observations')
++    for d in dates:datetime.date.fromisoformat(d)
++    values=[min_train,test_size,gap,holdout_size,label_horizon,max_lookback]
++    if any(type(x) is not int for x in values) or min_train<30 or test_size<2 or holdout_size<2:raise ValueError('Invalid fold sizes')
++    required=label_horizon-1
++    if gap<required or label_horizon<1 or max_lookback<1:raise ValueError('Gap must cover registered outcome horizon minus one')
++    holdout_start=len(dates)-holdout_size
++    development_stop=holdout_start-gap
++    train_start=max_lookback-1
++    if development_stop<train_start+min_train+gap+test_size:raise ValueError('Insufficient history for development folds and separated holdout')
++    folds=[];test_start=train_start+min_train+gap
++    while test_start+test_size<=development_stop:
++        train_stop=test_start-gap
++        folds.append({'train':[train_start,train_stop],'test':[test_start,test_start+test_size],
++                      'train_last':dates[train_stop-1],'test_first':dates[test_start]})
++        test_start+=test_size
++    return {'version':1,'dates_sha256':hashlib.sha256(json.dumps(dates).encode()).hexdigest(),
++            'observations':len(dates),'folds':folds,'development':[0,development_stop],
++            'holdout':[holdout_start,len(dates)],'holdout_dates':dates[holdout_start:],'holdout_gap':[development_stop,holdout_start],
++            'warmup':[0,train_start],'gap':gap,'max_lookback':max_lookback,'label_horizon':label_horizon,
++            'index_semantics':'half-open chronological observation indices',
++            'caveat':'Conservative forward split; not general interval-label purging or CPCV. Register before tuning. Previously viewed history is not restored to untouched status.'}
++
++
++def register_protocol(path,plan,data_hash,search_policy_hash,previously_viewed=True,data_exposure_namespace=None):
++    path=Path(path)
++    if not previously_viewed and not data_exposure_namespace:raise ValueError("Untouched-holdout claim requires an explicit stable exposure namespace, never a re-encoding-sensitive artifact hash")
++    if path.exists():raise ValueError('Protocol is immutable; create a new research registration instead of overwriting it')
++    record={'plan':plan,'data_hash':data_hash,'search_policy_hash':search_policy_hash,
++            'previously_viewed':bool(previously_viewed),'data_exposure_namespace':data_exposure_namespace or data_hash,'created_at':datetime.datetime.now(datetime.timezone.utc).isoformat()}
++    digest=hashlib.sha256(json.dumps(record,sort_keys=True).encode()).hexdigest()
++    record['protocol_hash']=digest
++    # Exclusive creation prevents two registrations racing past the check.
++    path.parent.mkdir(parents=True,exist_ok=True)
++    with path.open('x') as fh:json.dump(record,fh,indent=2);fh.flush();__import__('os').fsync(fh.fileno())
++    return record
++
++
++class HoldoutSeal:
++    """Single recorded final evaluation; state remains consumed after a crash.
++    Caller must verify the artifact hash and submit an already frozen candidate.
++    Prevents silent repeat calls through this API, not access outside the API.
++    """
++    def __init__(self,path):self.path=Path(path)
++    def evaluate(self,registration,frozen_candidate_hash,data_hash,evaluator):
++        unsigned={k:v for k,v in registration.items() if k!='protocol_hash'}
++        if hashlib.sha256(json.dumps(unsigned,sort_keys=True).encode()).hexdigest()!=registration['protocol_hash']:raise ValueError('Registration was modified')
++        if data_hash!=registration['data_hash']:raise ValueError('Registered data identity changed')
++        if registration['previously_viewed']:raise ValueError('Already viewed history cannot be labeled untouched holdout')
++        if not frozen_candidate_hash:raise ValueError('Freeze candidate/portfolio before holdout')
++        self.path.parent.mkdir(parents=True,exist_ok=True)
++        conn=sqlite3.connect(self.path,timeout=30)
++        try:
++            with conn:
++                conn.execute('CREATE TABLE IF NOT EXISTS seals(protocol_hash TEXT PRIMARY KEY,candidate_hash TEXT,status TEXT,result TEXT)')
++                conn.execute('CREATE TABLE IF NOT EXISTS exposed_observations(namespace TEXT,observation_id TEXT,protocol_hash TEXT,PRIMARY KEY(namespace,observation_id))')
++                try:
++                    conn.executemany('INSERT INTO exposed_observations VALUES(?,?,?)',
++                        [(registration['data_exposure_namespace'],d,registration['protocol_hash']) for d in registration['plan']['holdout_dates']])
++                    conn.execute('INSERT INTO seals VALUES(?,?,?,NULL)',(registration['protocol_hash'],frozen_candidate_hash,'claimed'))
++                except sqlite3.IntegrityError:raise ValueError('Holdout observations already exposed/claimed; changing registration/candidate/policy cannot reset them')
++            result=evaluator(registration['plan']['holdout'])
++            raw=json.dumps(result,allow_nan=False)
++            with conn:conn.execute('UPDATE seals SET status=?,result=? WHERE protocol_hash=?',('completed',raw,registration['protocol_hash']))
++            return result
++        finally:conn.close()
++
++
++def purge_forward_events(events,test_indices):
++    """Inclusive information intervals and explicit as-of availability.
++    Strictly forward: post-test embargo is inapplicable to past-only training.
++    Trailing feature warmup is separate from label overlap; this is not CPCV.
++    """
++    def instant(value):
++        t=datetime.datetime.fromisoformat(str(value).replace('Z','+00:00'))
++        return t.replace(tzinfo=datetime.timezone.utc) if t.tzinfo is None else t
++    if not test_indices or any(type(i) is not int or i<0 or i>=len(events) for i in test_indices):raise ValueError('Invalid test membership')
++    parsed=[]
++    for row in events:
++        times={k:instant(row[k]) for k in ('decision_time','outcome_start','outcome_end','label_available_at','feature_available_at')}
++        if not times['decision_time']<=times['outcome_start']<=times['outcome_end']<=times['label_available_at']:raise ValueError('Invalid outcome information interval')
++        parsed.append(times)
++    if any(parsed[i]['decision_time']>=parsed[i+1]['decision_time'] for i in range(len(parsed)-1)):raise ValueError('Decisions must be strictly chronological')
++    test=set(test_indices)
++    if any(parsed[i]['feature_available_at']>parsed[i]['decision_time'] for i in test):raise ValueError('Validation event has future feature availability')
++    cutoff=min(parsed[i]['decision_time'] for i in test)
++    spans=[(parsed[i]['outcome_start'],parsed[i]['outcome_end']) for i in test]
++    train=[];excluded={}
++    for i,row in enumerate(parsed):
++        if i in test:continue
++        if row['decision_time']>=cutoff:reason='not_strictly_forward'
++        elif row['feature_available_at']>row['decision_time']:reason='feature_not_available_as_of_decision'
++        elif any(row['outcome_start']<=stop and row['outcome_end']>=begin for begin,stop in spans):reason='overlapping_outcome_information'
++        elif row['label_available_at']>=cutoff:reason='label_not_available_at_train_cutoff'
++        else:train.append(i);continue
++        excluded[str(i)]=reason
++    return {'train_indices':train,'test_indices':sorted(test),'excluded':excluded,'intervals':'closed/inclusive',
++            'caveat':'Truthful source timestamps required; cannot repair globally selected candidate-pool leakage'}
+--- /dev/null
++++ b/forge2_quant_review.py
+@@ -0,0 +1,113 @@
++"""Read-only, credential-free review of existing archives/explicit return panels.
++Never treats cumulative dollar PnL as capital-normalized excess returns.
++CLI: --db archive.db [--db ...] [--returns panel.json] --out review.json
++"""
++from __future__ import annotations
++import argparse,hashlib,json,sqlite3
++from pathlib import Path
++from collections import defaultdict
++from forge2_inference import sharpe_inference,moving_block_sharpe,paired_sharpe_inference,paired_block_sharpe
++from forge2_cscv import cscv_fixed_pool
++from forge2_protocol import forward_folds
++from forge2_portfolio import select_basket
++from forge2_storage import atomic_json
++
++
++def assess_return_panel(panel,min_train=126,test_size=63,gap=20,holdout_size=126,max_lookback=20,label_horizon=1,resamples=500,comparisons=(),cscv_blocks=0):
++    metadata=panel.get('metadata',{})
++    if (metadata.get('unit')!='daily_arithmetic_excess_return' or metadata.get('calendar')!='trading_day'
++        or metadata.get('capital_normalization')!='verified' or metadata.get('cost_basis') not in ('net','gross')
++        or not metadata.get('excess_return_reference')):
++        raise ValueError('Need explicit return units, trading-day calendar, verified capital normalization, cost basis and excess-return reference')
++    rows=panel.get('observations',[]);dates=[r['date'] for r in rows]
++    plan=forward_folds(dates,min_train,test_size,gap,holdout_size,label_horizon,max_lookback)
++    identifiers=set(rows[0]['values']) if rows else set()
++    if not identifiers or any(set(r['values'])!=identifiers for r in rows):raise ValueError('Return panel must have identical explicit candidate columns; do not silently impute/drop rows')
++    diagnostics={}
++    for aid in sorted(identifiers):
++        # No holdout values are used in diagnostic computations. Full artifact
++        # identity hashes are provenance, not inferred future performance.
++        values=[rows[i]['values'][aid] for fold in plan['folds'] for i in range(*fold['test'])]
++        diagnostics[aid]={'hac':sharpe_inference(values),'block_bootstrap':moving_block_sharpe(values,resamples=resamples),
++                          'scope':'registered development test blocks for a fixed recorded candidate; not refit-model CV or untouched holdout certification'}
++    test_indices=[i for fold in plan['folds'] for i in range(*fold['test'])]
++    contrasts=[]
++    for left,right in comparisons:
++        if left not in identifiers or right not in identifiers:raise ValueError('Comparison IDs absent from panel')
++        a=[rows[i]['values'][left] for i in test_indices];b=[rows[i]['values'][right] for i in test_indices]
++        contrasts.append({'left':left,'right':right,'hac':paired_sharpe_inference(a,b),
++                          'studentized_blocks':paired_block_sharpe(a,b,resamples=resamples)})
++    cscv=None
++    if cscv_blocks:
++        values=[[rows[i]['values'][aid] for aid in sorted(identifiers)] for i in test_indices]
++        cscv=cscv_fixed_pool(values,blocks=cscv_blocks)
++    return {'plan':plan,'metadata':metadata,'diagnostics':diagnostics,'paired_contrasts':contrasts,'fixed_pool_cscv':cscv,
++            'holdout_evaluated':False,'previously_viewed':bool(metadata.get('previously_viewed',True)),
++            'caveat':'Unknown historical exposure defaults to previously viewed. Neither HAC nor bootstrap adjusts selection across tried candidates.'}
++
++
++def review_archives(paths,size=20):
++    groups=defaultdict(list);panels=defaultdict(dict);metadata={};sources=[]
++    for file in map(Path,paths):
++        file=file.resolve()
++        if not file.is_file():raise FileNotFoundError(file)
++        manifest=file.parent/'forge2_epoch_manifest.json'
++        epoch=file.parent
++        if manifest.exists():epoch=file.parent/json.loads(manifest.read_text()).get('epoch_dir','.')
++        meta_path=epoch/'forge2_field_meta.json'
++        meta=json.loads(meta_path.read_text()) if meta_path.exists() else {};axes=meta.get('axes',{})
++        metadata.update(meta.get('field_metadata',{}))
++        c=sqlite3.connect(file.as_uri()+'?mode=ro',uri=True);c.row_factory=sqlite3.Row
++        try:
++            records=[dict(r) for r in c.execute('SELECT * FROM alpha_population WHERE fitness IS NOT NULL AND sharpe IS NOT NULL ORDER BY fitness DESC,id')]
++            try:pnl_rows=c.execute('SELECT alpha_id,date,pnl FROM alpha_pnl WHERE pnl IS NOT NULL').fetchall()
++            except sqlite3.OperationalError:pnl_rows=[]
++        finally:c.close()
++        pnls=defaultdict(dict)
++        for aid,date,value in pnl_rows:pnls[aid][date]=value
++        for r in records:
++            if not r.get('alpha_id'):continue
++            # An unknown region/delay is kept scoped to its source DB, not pooled.
++            regime=(axes.get('region',str(file)),axes.get('delay'),r.get('universe'))
++            r['region'],r['delay']=regime[:2]
++            groups[regime].append(r)
++            if r['alpha_id'] in pnls:panels[regime][r['alpha_id']]=pnls[r['alpha_id']]
++        sources.append({'database':str(file),'scored_rows':len(records),'pnl_rows':len(pnl_rows),'axes':axes})
++    results=[]
++    for regime,rows in groups.items():
++        # Overlapping mirrors do not duplicate an alpha ID inside a panel.
++        unique={}
++        for row in rows:
++            aid=row['alpha_id']
++            if aid not in unique or row['fitness']>unique[aid]['fitness']:unique[aid]=row
++        ordered=sorted(unique.values(),key=lambda r:(-r['fitness'],r['alpha_id']))
++        selected,diagnostics=select_basket(ordered,panels[regime],metadata,size)
++        results.append({'regime':list(regime),'scored_candidates':len(ordered),'selected_alpha_ids':[r['alpha_id'] for r in selected],
++                        'diversity':diagnostics,'qualification':'Not evaluated here; basket membership is not platform eligibility'})
++    return {'sources':sources,'baskets':results,'scope':'Historical standardized cumulative-PnL interval redundancy; no net-return Sharpe inference without explicit capital normalization'}
++
++
++def main():
++    p=argparse.ArgumentParser(description=__doc__)
++    p.add_argument('--db',action='append',default=[]);p.add_argument('--returns');p.add_argument('--out',required=True)
++    p.add_argument('--min-train',type=int,default=126)
++    p.add_argument('--test-size',type=int,default=63)
++    p.add_argument('--gap',type=int,default=20)
++    p.add_argument('--holdout-size',type=int,default=126)
++    p.add_argument('--max-lookback',type=int,default=20)
++    p.add_argument('--label-horizon',type=int,default=1)
++    p.add_argument('--compare',nargs=2,action='append',default=[],metavar=('LEFT','RIGHT'))
++    p.add_argument('--cscv-blocks',type=int,default=0)
++    a=p.parse_args()
++    if (a.compare or a.cscv_blocks) and not a.returns:p.error('Paired/CSCV diagnostics require explicit return panel')
++    if not a.db and not a.returns:p.error('Provide existing DB(s) or an explicit normalized return panel')
++    report={'archive_review':review_archives(a.db),'return_inference':None,'network_calls':0}
++    if a.returns:
++        raw=Path(a.returns).read_bytes();report['return_file_sha256']=hashlib.sha256(raw).hexdigest()
++        report['return_inference']=assess_return_panel(json.loads(raw),min_train=a.min_train,test_size=a.test_size,gap=a.gap,holdout_size=a.holdout_size,max_lookback=a.max_lookback,label_horizon=a.label_horizon,comparisons=a.compare,cscv_blocks=a.cscv_blocks)
++    else:report['return_inference_unavailable']='No verified capital-normalized daily excess-return panel provided; PnL is not silently converted'
++    atomic_json(a.out,report)
++    print(json.dumps({'databases':len(a.db),'basket_regimes':len(report['archive_review']['baskets']),
++                      'holdout_evaluated':False,'network_calls':0}))
++
++if __name__=='__main__':main()
+--- /dev/null
++++ b/forge2_search.py
+@@ -0,0 +1,43 @@
++"""Safe syntax identity and resource budgets; no speculative algebra rewrites."""
++import ast,hashlib,json,math,io,tokenize
++from forge2_expression import field_tokens
++
++
++def expression_identity(expression):
++    tree=ast.parse(expression,mode='eval')
++    # Python AST removes whitespace and redundant grouping, but preserves field
++    # order, signs, keyword order and constants. rank(-x) != -rank(x).
++    literals=[(t.type,t.string) for t in tokenize.generate_tokens(io.StringIO(expression).readline) if t.type in (tokenize.NUMBER,tokenize.STRING)]
++    return hashlib.sha256(json.dumps([ast.dump(tree,include_attributes=False),literals]).encode()).hexdigest()
++
++
++def candidate_identity(payload,context):
++    data={'expression_ast':expression_identity(payload['regular']),
++          'settings':payload['settings'],'type':payload.get('type'),'context':context}
++    return hashlib.sha256(json.dumps(data,sort_keys=True,separators=(',',':'),allow_nan=False).encode()).hexdigest()
++
++
++def budget_errors(expression,max_nodes=160,max_calls=32,max_depth=18,max_fields=8,max_window=1500):
++    try:tree=ast.parse(expression,mode='eval')
++    except (SyntaxError,TypeError):return ['invalid_syntax']
++    nodes=list(ast.walk(tree));calls=[n for n in nodes if isinstance(n,ast.Call)]
++    def depth(node):return 1+max((depth(c) for c in ast.iter_child_nodes(node)),default=0)
++    errors=[]
++    if len(nodes)>max_nodes:errors.append('ast_node_budget')
++    if len(calls)>max_calls:errors.append('operator_call_budget')
++    if depth(tree)>max_depth:errors.append('ast_depth_budget')
++    if len(set(field_tokens(expression)))>max_fields:errors.append('field_count_budget')
++    # Known lookback roles from the partial checker, not every numeric argument.
++    from forge2_expression import _WINDOW_PARAMETERS, _GROUP_PARAMETERS
++    WINDOW_SLOTS={op:parameters.index('d') if 'd' in parameters else parameters.index('lookback') for op,parameters in {**_WINDOW_PARAMETERS,'group_backfill':_GROUP_PARAMETERS['group_backfill']}.items()}
++    for call in calls:
++        if not isinstance(call.func,ast.Name):continue
++        position=WINDOW_SLOTS.get(call.func.id.lower())
++        if position is None:continue
++        args=[]
++        if len(call.args)>position:args.append(call.args[position])
++        args.extend(k.value for k in call.keywords if k.arg in ('d','days','lookback'))
++        for arg in args:
++            if isinstance(arg,ast.Constant) and type(arg.value) in (int,float) and arg.value>max_window:
++                errors.append('lookback_budget')
++    return sorted(set(errors))
+--- a/forge2_smoke_test.py
++++ b/forge2_smoke_test.py
+@@ -159,11 +159,12 @@
+               "%d/%d" % (len(passthrough), len(compound_ids)))
+ 
+         gk = set(meta["group_keys"])
+-        check(tag + " group keys present", len(gk) >= 3, str(len(gk)))
+-        bad_gk = [g for g in gk
+-                  if catalog.fields.get(g) is None
+-                  or catalog.fields[g].type != "GROUP"
+-                  or catalog.fields[g].coverage < F2.GROUP_KEYS_MIN_COVERAGE]
++        check(tag + " group keys present", bool(gk), str(len(gk)))
++        from forge2_expression import BUILTIN_GROUPS
++        bad_gk = [g for g in gk if g not in BUILTIN_GROUPS and (
++                  catalog.fields.get(g) is None or catalog.fields[g].type != "GROUP"
++                  or not catalog.fields[g].available(region,delay,meta["primary_universe"])
++                  or catalog.fields[g].for_axis(region,delay,meta["primary_universe"]).coverage < F2.GROUP_KEYS_MIN_COVERAGE)]
+         check(tag + " group keys valid", not bad_gk, "; ".join(bad_gk[:3]))
+ 
+         bad_tmpl, uses_gk = [], 0
+--- a/forge2_vocabulary.py
++++ b/forge2_vocabulary.py
+@@ -17,7 +17,7 @@
+   * forge2_field_meta.json -> pyramid boost (forge2_factory) + bandit mapping
+     (forge2_campaign): field/expr -> dataset, multiplier, family, class.
+ 
+-No engine file is modified; the vocabulary is swapped underneath it.
++The adapter integrates this recorded vocabulary with the upgraded engine.
+ """
+ 
+ import hashlib
+@@ -25,6 +25,7 @@
+ import re
+ import time
+ import uuid
++import os
+ from collections import defaultdict
+ from pathlib import Path
+ 
+@@ -83,7 +84,10 @@
+         self.exposures = {}
+         observed = catalog.observed_universes(region, delay)
+         preferred = F2.PRIMARY_UNIVERSE_BY_REGION.get(region)
+-        self.primary_universe = observed[0] if observed else preferred
++        requested=os.getenv("FORGE2_PRIMARY_UNIVERSE")
++        if requested and requested not in observed:raise ValueError("Requested primary universe is not observed for this axis")
++        self.primary_universe=requested or (preferred if preferred in observed else (observed[0] if observed else preferred))
++        self.universe_selection_reason="explicit_recorded_override" if requested else ("configured_preference_observed" if preferred in observed else "recorded_coverage_fallback")
+         import random as _random
+         self.rng = rng or _random.Random(F2.RANDOM_SEED)
+ 
+@@ -274,7 +278,9 @@
+         meta_fields = {k: v for k, v in meta_fields.items() if k in kept_ids}
+ 
+         # 6) GROUP neutralization keys (finding #6)
+-        group_keys = [g.id for g in self.catalog.group_keys(self.region, self.delay, universe=self.primary_universe)]
++        recorded_group_keys = [g.id for g in self.catalog.group_keys(self.region, self.delay, universe=self.primary_universe)]
++        builtin_group_keys=['subindustry','industry','sector','market']
++        group_keys=list(dict.fromkeys(recorded_group_keys+builtin_group_keys))
+ 
+         seed_pool = self._build_seed_pool(rows, meta_fields, group_keys)
+ 
+@@ -291,6 +297,7 @@
+         meta = {
+             "axes": {"region": self.region, "delay": self.delay},
+             "primary_universe":self.primary_universe,
++            "universe_selection_reason":self.universe_selection_reason,
+             "observed_universes":self.catalog.observed_universes(self.region,self.delay),
+             "field_metadata":field_metadata,
+             "fitness_policy":F2.FITNESS_POLICY_VERSION,
+@@ -301,6 +308,8 @@
+             "fields": meta_fields,
+             "field_to_dataset": field_to_dataset,
+             "group_keys": group_keys,
++            "recorded_group_keys":recorded_group_keys,
++            "builtin_group_keys":builtin_group_keys,
+             "datasets_chosen": chosen,
+         }
+         stats = {
+--- a/network_engine.py
++++ b/network_engine.py
+@@ -452,24 +452,35 @@
+           * 429                        -> honor Retry-After, retry (no budget cost)
+           * other 4xx                  -> TERMINAL, returned to caller (no retry)
+         """
++        if getattr(config,"RESEARCH_OFFLINE_ONLY",False):raise RuntimeError("Offline research mode forbids remote transport requests")
+         url = endpoint if endpoint.startswith("http") else f"{config.WQ_BASE_URL}{endpoint}"
++        unsafe_write=(method.upper()=="POST" and endpoint.rstrip("/").endswith("/simulations") and getattr(config,"SAFE_SIMULATION_WRITES",False))
+         error_retries = 0
+         auth_retries = 0
+         throttle_retries = 0
+ 
++        import time
++        deadline=time.monotonic()+getattr(config,"NETWORK_REQUEST_TIMEOUT_SECS",120.)
++        total_attempts=0
+         while True:
+-            await self._rate_limiter.wait()
++            total_attempts+=1
++            if total_attempts>getattr(config,"NETWORK_MAX_TOTAL_ATTEMPTS",20) or time.monotonic()>=deadline:
++                raise TimeoutError("Network retry/deadline budget exhausted")
++            await asyncio.wait_for(self._rate_limiter.wait(),timeout=max(.001,deadline-time.monotonic()))
+             current_cookie = self.cookie
+             try:
+-                response = await self.session.request(method, url, json=json)
++                response = await asyncio.wait_for(self.session.request(method,url,json=json),timeout=max(.001,deadline-time.monotonic()))
+             except Exception as e:
++                if unsafe_write:
++                    from forge2_experiments import IndeterminateAttemptError
++                    raise IndeterminateAttemptError("Simulation POST transport outcome unknown; automatic retry disabled") from e
+                 error_retries += 1
+                 logger.error(f"Transport error on {method} {url}: {e} "
+                              f"(retry {error_retries}/{config.NETWORK_MAX_ERROR_RETRIES})")
+                 if error_retries >= config.NETWORK_MAX_ERROR_RETRIES:
+                     raise
+                 await self._rate_limiter.defer(config.MAX_JITTER_SECS)
+-                await asyncio.sleep(config.MAX_JITTER_SECS)
++                await asyncio.sleep(min(config.MAX_JITTER_SECS,max(0,deadline-time.monotonic())))
+                 continue
+ 
+             status = response.status_code
+@@ -484,7 +495,7 @@
+                     )
+                 logger.warning(f"Auth required ({status}) on {url}; refreshing session "
+                                f"(attempt {auth_retries}/{config.AUTH_MAX_REFRESH_ATTEMPTS}).")
+-                await self._refresh_auth(current_cookie)
++                await asyncio.wait_for(self._refresh_auth(current_cookie),timeout=max(.001,deadline-time.monotonic()))
+                 continue
+ 
+             if status == 429:
+@@ -501,7 +512,7 @@
+                 logger.warning(f"Throttled (429) on {url}; backing off {backoff:.1f}s "
+                                f"(throttle attempt {throttle_retries}).")
+                 await self._rate_limiter.defer(backoff)
+-                await asyncio.sleep(backoff)
++                await asyncio.sleep(min(backoff,max(0,deadline-time.monotonic())))
+                 continue
+ 
+             if 400 <= status < 500:
+@@ -511,13 +522,16 @@
+                 return self._build_result(response)
+ 
+             if status >= 500:
++                if unsafe_write:
++                    from forge2_experiments import IndeterminateAttemptError
++                    raise IndeterminateAttemptError("Simulation POST 5xx outcome ambiguous; automatic retry disabled")
+                 error_retries += 1
+                 logger.error(f"Server error {status} on {url} "
+                              f"(retry {error_retries}/{config.NETWORK_MAX_ERROR_RETRIES})")
+                 if error_retries >= config.NETWORK_MAX_ERROR_RETRIES:
+                     return self._build_result(response)
+                 await self._rate_limiter.defer(config.MAX_JITTER_SECS)
+-                await asyncio.sleep(config.MAX_JITTER_SECS)
++                await asyncio.sleep(min(config.MAX_JITTER_SECS,max(0,deadline-time.monotonic())))
+                 continue
+ 
+             # 2xx / 3xx success. A Retry-After here (used by WQ while a
+--- a/oos_deflation.py
++++ b/oos_deflation.py
+@@ -226,23 +226,24 @@
+         return float(math.exp(-config.OVERFIT_RISK_K * gap))
+ 
+     @staticmethod
+-    def estimate_pbo(is_oos_pairs) -> float:
+-        """Simplified Probability of Backtest Overfitting (CSCV-flavoured).
+-
+-        Given (is_score, oos_score) pairs, estimate how over-fit the IS winner is
+-        by the fraction of trials whose OOS score beats the IS winner's OOS
+-        score. High => the in-sample champion is mediocre out-of-sample. This is
+-        an APPROXIMATION (true CSCV needs per-period returns we don't retain),
+-        logged as a portfolio diagnostic, never used as a hard gate.
++    def single_split_winner_rank(is_oos_pairs):
++        """Fraction of recorded OOS scores exceeding a single IS winner.
++        This is a single-split rank diagnostic, NOT CSCV/PBO. Unknown with fewer
++        than four finite pairs; no return of zero confidence from missing data.
+         """
+         pairs = [(i, o) for i, o in (is_oos_pairs or [])
+                  if i is not None and o is not None
+                  and math.isfinite(i) and math.isfinite(o)]
+         if len(pairs) < 4:
+-            return 0.0
++            return None
+         best_is_oos = max(pairs, key=lambda p: p[0])[1]
+         worse = sum(1 for _, o in pairs if o > best_is_oos)
+         return float(worse) / len(pairs)
++
++    @staticmethod
++    def estimate_pbo(is_oos_pairs):
++        """Deprecated compatibility alias for single_split_winner_rank, not PBO."""
++        return OOSDeflationEngine.single_split_winner_rank(is_oos_pairs)
+ 
+ 
+ def _self_test():
+--- a/orchestrator.py
++++ b/orchestrator.py
+@@ -7,6 +7,7 @@
+ import os
+ import random
+ import time
++from urllib.parse import urlparse
+ from collections import Counter
+ from dataclasses import dataclass, asdict
+ from pathlib import Path
+@@ -20,6 +21,7 @@
+ from llm_seed_generator import LLMSeedGenerator
+ from syntax_validator import SyntaxValidator
+ from forge2_checks import parse_checks
++from forge2_experiments import IndeterminateAttemptError
+ from forge2_storage import atomic_json, as_tuples
+ from forge2_expression import semantic_mutation, projection_mutation, typed_crossover, type_errors
+ 
+@@ -276,8 +278,8 @@
+     alpha_id: str = ""
+     skew: float = 0.0
+     kurtosis: float = 0.0  # EXCESS kurtosis (normal == 0); see config.KURTOSIS_IS_EXCESS
+-    drawdown: float = 0.0  # IS max drawdown as a fraction (BRAIN 'is.drawdown')
+-    margin: float = 0.0    # IS margin / $ traded (BRAIN 'is.margin'); can be < 0
++    drawdown: float | None = None  # IS max drawdown as a fraction (BRAIN 'is.drawdown')
++    margin: float | None = None    # IS margin / $ traded (BRAIN 'is.margin'); can be < 0
+     track_record_length: int = config.DEFAULT_TRACK_RECORD_LENGTH
+     oos_sharpe: float | None = None
+     # Comma-joined names of BRAIN is.checks that FAILED (concentration, sub-
+@@ -698,7 +700,9 @@
+         self.genetic = GeneticEngine()
+ 
+         self.population = []
++        self.basket_report={"reason":"not_evaluated"}
+         self.result_cache = {}
++        self._proposal_lineage = {}
+         # alpha_id -> {date: cumulative_pnl} cache for the return-orthogonality
+         # selection lever. Populated on simulate + lazily from the alpha_pnl
+         # table on resume; trimmed in _trim_state (elite PnL is always
+@@ -737,6 +741,7 @@
+     # --- helpers -------------------------------------------------------------
+     @staticmethod
+     def _safe_float(value, default):
++        if isinstance(value,bool):return default
+         try:
+             f = float(value)
+             return f if math.isfinite(f) else default
+@@ -809,15 +814,15 @@
+         self.genetic.avoid_motifs = self._avoid_motifs
+ 
+     def _log_pbo_diagnostic(self):
+-        """Log a portfolio-level overfitting diagnostic (approx PBO, Upgrade #6)."""
++        """Log a single-split winner rank, explicitly not CSCV/PBO."""
+         if not config.PBO_DIAGNOSTIC_ENABLED:
+             return
+         pairs = [(rec.get("sharpe"), rec.get("oos_sharpe")) for rec in self.population
+                  if rec.get("oos_sharpe") is not None]
+         if len(pairs) >= 4:
+-            pbo = self.deflation.estimate_pbo(pairs)
++            pbo = self.deflation.single_split_winner_rank(pairs)
+             logger.info(
+-                f"Portfolio overfitting diagnostic (approx PBO) = {pbo:.2f} "
++                f"Single-split IS-winner OOS-rank diagnostic (not PBO) = {pbo:.2f} "
+                 f"over {len(pairs)} OOS-scored alphas."
+             )
+ 
+@@ -849,6 +854,8 @@
+ 
+     # --- lifecycle -----------------------------------------------------------
+     async def initialize(self):
++        if getattr(config,"RESEARCH_OFFLINE_ONLY",False) and not getattr(self.network,"offline_fixture",False):
++            raise RuntimeError("Forge2 offline research mode: real transport initialization disabled")
+         await self.db.init_db()
+         self.sim_semaphore = asyncio.Semaphore(config.MAX_CONCURRENT_SIMULATIONS)
+         # Keep the session warm so idle gaps between simulations don't trigger a
+@@ -875,8 +882,8 @@
+                 checks = parse_checks(metrics)
+                 cached = self.result_cache[key]
+                 cached.failed_checks = ",".join(checks.failed) if checks.verified else "CHECKS_UNVERIFIABLE"
+-                cached.drawdown = self._safe_float(metrics.get("drawdown"),0.0)
+-                cached.margin = self._safe_float(metrics.get("margin"),0.0)
++                cached.drawdown = self._safe_float(metrics.get("drawdown"),None)
++                cached.margin = self._safe_float(metrics.get("margin"),None)
+                 cached.sharpe_2y = checks.sharpe_2y
+                 cached.pnl_realization = checks.pnl_realization
+                 cached.pyramid_multiplier = checks.pyramid_multiplier
+@@ -926,6 +933,7 @@
+                     "winner_exprs":getattr(self,"winner_exprs",[]),"experience":getattr(self,"experience",[]),
+                     "refined":sorted(getattr(self,"refined",set())),"avoid_motifs":sorted(getattr(self,"_avoid_motifs",set()))},
+                 "epoch_id":os.getenv("FORGE2_EPOCH_ID"),
++                "basket_report":getattr(self,"basket_report",{}),
+             }
+             if pending_offspring is not None:
+                 # Still INSIDE this generation (not past it): resume must
+@@ -960,6 +968,8 @@
+                 setattr(self,name,decision[name])
+             self.refined=set(decision["refined"])
+             self._avoid_motifs=set(decision["avoid_motifs"])
++            self.genetic.avoid_motifs=self._avoid_motifs.copy()
++        self.basket_report=data.get("basket_report",{"reason":"legacy_checkpoint"})
+         self._resume_population_snapshot=data.get("population_snapshot")
+         if self._resume_population_snapshot is not None:
+             for rec in self._resume_population_snapshot:
+@@ -1007,6 +1017,20 @@
+ 
+         result = SimulationResult(expression=expression, universe=universe, decay=decay)
+         payload = config.build_simulation_payload(expression, universe, decay)
++        ledger=getattr(self,"experiment_ledger",None)
++        attempt=ledger.prepare(payload,self.experiment_context,{**getattr(self,"_proposal_lineage",{}).get(cache_key,{}),"scoring_policy_hash":getattr(self,"scoring_policy_hash",None)}) if ledger else None
++        if attempt and attempt["state"] in ("accepted","remote_complete","completed","expired_unresolved") and getattr(self,"trial_ledger",None):
++            # Reconcile the separate shared counter from durable acceptance
++            # evidence. A crash after receipt commit must not lower observed N.
++            self.trial_ledger.record(self.trial_context,expression,universe,decay,payload=payload)
++        if attempt and attempt["state"] in ("dispatching","expired_unresolved"):
++            raise IndeterminateAttemptError("Remote acceptance unknown for attempt "+attempt["attempt_id"]+"; reconcile a recorded receipt, never automatically repost")
++        if attempt and attempt["state"]=="failed":return result
++        if attempt and attempt["state"]=="completed":
++            saved=json.loads(attempt["result"]);result=SimulationResult(**saved["result"])
++            await self._persist_raw_result(result,payload,saved["metrics"])
++            self.result_cache[cache_key]=result
++            return result
+ 
+         # Hold a concurrency slot for the ENTIRE active lifetime of the
+         # simulation -- the submission POST *and* the polling loop -- so the
+@@ -1020,39 +1044,79 @@
+         alpha_id = None
+         errored = False
+         async with self.sim_semaphore:
+-            resp = await self.network.request("POST", "/simulations", json=payload)
+-            self.submission_count += 1
+-            if resp["status_code"] in (200,201) and getattr(self,"trial_ledger",None):
+-                self.trial_ledger.record(self.trial_context,expression,universe,decay,payload=payload)
+-            if resp["status_code"] not in (200, 201):
+-                logger.info(f"Simulation rejected (HTTP {resp['status_code']}).")
+-                self.result_cache[cache_key] = result
+-                return result
+-            poll_url = resp.get("location")
+-            body = resp.get("json")
+-            if not poll_url and isinstance(body, dict):
+-                poll_url = body.get("location") or body.get("url")
+-            if not poll_url:
+-                logger.warning("Simulation accepted but no poll URL returned.")
+-                self.result_cache[cache_key] = result
+-                return result
+-
+-            poll_endpoint = poll_url.replace(config.WQ_BASE_URL, "")
++            receipt=json.loads(attempt["receipt"]) if attempt and attempt.get("receipt") else {}
++            if attempt and attempt["state"]=="remote_complete":
++                alpha_id=receipt["alpha_id"]
++                poll_url=None
++            elif attempt and attempt["state"]=="accepted":
++                poll_url=receipt["poll_url"]
++            else:
++                if ledger:ledger.dispatch(attempt["attempt_id"],getattr(config,"MAX_DISPATCHES",0))
++                try:
++                    resp = await self.network.request("POST", "/simulations", json=payload)
++                except BaseException as exc:
++                    if ledger and not isinstance(exc,asyncio.CancelledError):
++                        raise IndeterminateAttemptError("Dispatch interrupted without receipt; no blind retry: "+attempt["attempt_id"]) from exc
++                    raise
++                self.submission_count += 1
++                if resp["status_code"] not in (200, 201):
++                    if ledger:
++                        if resp["status_code"]>=500:raise IndeterminateAttemptError("Ambiguous simulation server error; attempt "+attempt["attempt_id"])
++                        ledger.reject(attempt["attempt_id"],"HTTP "+str(resp["status_code"]))
++                    self.result_cache[cache_key] = result
++                    return result
++                poll_url = resp.get("location")
++                body = resp.get("json")
++                if not poll_url and isinstance(body, dict):poll_url = body.get("location") or body.get("url")
++                if not poll_url:
++                    if ledger:raise IndeterminateAttemptError("Accepted simulation has no receipt; attempt "+attempt["attempt_id"])
++                    return result
++                if ledger:ledger.accept(attempt["attempt_id"],poll_url,time.time()+config.SIMULATION_POLL_TIMEOUT_SECS)
++                if getattr(self,"trial_ledger",None):
++                    try:self.trial_ledger.record(self.trial_context,expression,universe,decay,payload=payload)
++                    except Exception as exc:raise IndeterminateAttemptError("Accepted receipt saved; shared trial counter needs offline reconciliation") from exc
++            if poll_url:
++                parsed=urlparse(poll_url);base=urlparse(config.WQ_BASE_URL)
++                if parsed.scheme:
++                    if parsed.scheme!="https" or parsed.netloc!=base.netloc:
++                        raise IndeterminateAttemptError("Poll receipt points outside the configured API; do not forward credentials")
++                    poll_endpoint=parsed.path+("?"+parsed.query if parsed.query else "")
++                elif poll_url.startswith("/") and not poll_url.startswith("//"):poll_endpoint=poll_url
++                else:raise IndeterminateAttemptError("Invalid poll receipt")
+             loop = asyncio.get_event_loop()
+             deadline = loop.time() + config.SIMULATION_POLL_TIMEOUT_SECS
+-            while loop.time() < deadline:
++            while not alpha_id and loop.time() < deadline:
+                 await asyncio.sleep(config.SIMULATION_POLL_INTERVAL_SECS)
+-                poll = await self.network.request("GET", poll_endpoint)
++                if ledger:ledger.reserve_poll(attempt["attempt_id"],getattr(config,"MAX_POLL_OPERATIONS",1000))
++                try:
++                    remaining=(json.loads(attempt["receipt"])["deadline_epoch"]-time.time()) if ledger and attempt.get("receipt") else None
++                    if ledger and remaining is None:
++                        # Newly accepted receipt is in the ledger, not the old
++                        # prepare() snapshot; use the original acceptance deadline.
++                        current_attempt=ledger.prepare(payload,self.experiment_context)
++                        remaining=json.loads(current_attempt["receipt"])["deadline_epoch"]-time.time()
++                    poll = await asyncio.wait_for(self.network.request("GET",poll_endpoint),timeout=max(.001,remaining)) if ledger else await self.network.request("GET",poll_endpoint)
++                except AuthenticationError:raise
++                except Exception as exc:
++                    if ledger:raise IndeterminateAttemptError("Accepted poll failed/bounded out; preserve receipt and original deadline") from exc
++                    raise
+                 pbody = poll.get("json") or {}
+                 status = str(pbody.get("status", "")).upper()
+                 if status in ("ERROR", "FAIL", "FAILED"):
+                     errored = True
++                    if ledger:ledger.reject(attempt["attempt_id"],"remote "+status)
+                     break
+                 if status == "COMPLETE" or pbody.get("alpha"):
+                     alpha_id = pbody.get("alpha")
++                    if ledger and alpha_id:ledger.remote_complete(attempt["attempt_id"],alpha_id)
+                     break
+ 
+         if not alpha_id:
++            if ledger and not errored:
++                # Record unresolved state even when the local loop deadline
++                # closes between polls. Never refund/repost this remote job.
++                ledger.transition(attempt["attempt_id"],{"accepted"},"expired_unresolved",{"reason":"local polling loop expired"})
++                raise IndeterminateAttemptError("Accepted job remains unresolved after deadline")
+             # Cache genuine errors so we don't retry a broken expression, but do
+             # NOT cache timeouts (those may succeed on a later, calmer run).
+             if errored:
+@@ -1062,17 +1126,18 @@
+         detail = await self.network.request("GET", f"/alphas/{alpha_id}")
+         detail_json = detail.get("json") or {}
+         metrics = detail_json.get("is") or {}
++        if detail.get("status_code")!=200 or not isinstance(metrics,dict) or any(self._safe_float(metrics.get(k),None) is None for k in ("sharpe","turnover","returns")):
++            raise RuntimeError("Completed alpha detail is unavailable/malformed; retain receipt and recover via GET, not a new simulation")
+         result.alpha_id = alpha_id
+         result.sharpe = self._safe_float(metrics.get("sharpe"), 0.0)
+         result.turnover = self._safe_float(metrics.get("turnover"), 1.0)
+         result.returns = self._safe_float(metrics.get("returns"), 0.0)
+         result.skew = self._safe_float(metrics.get("skewness"), 0.0)
+         result.kurtosis = self._safe_float(metrics.get("kurtosis"), 0.0)
+-        # Risk gates (C9): BRAIN reports IS max drawdown and margin alongside the
+-        # headline stats. A missing field defaults to 0.0 -- which PASSES both
+-        # gates -- so we never reject an alpha merely because a metric was absent.
+-        result.drawdown = self._safe_float(metrics.get("drawdown"), 0.0)
+-        result.margin = self._safe_float(metrics.get("margin"), 0.0)
++        # Missing risk evidence remains unknown and fails a configured gate;
++        # an absent drawdown/margin is not a fabricated zero-risk observation.
++        result.drawdown = self._safe_float(metrics.get("drawdown"), None)
++        result.margin = self._safe_float(metrics.get("margin"), None)
+         # BRAIN submittability checks (is.checks): names of any gate BRAIN itself
+         # FAILED (concentration, sub-universe Sharpe, turnover floor, ...) -- the
+         # failures our own metric thresholds can't see. PENDING submission-time
+@@ -1082,7 +1147,6 @@
+         result.sharpe_2y = evidence.sharpe_2y
+         result.pnl_realization = evidence.pnl_realization
+         result.pyramid_multiplier = evidence.pyramid_multiplier
+-        await self.db.save_checks(result.alpha_id, metrics)
+         trl = metrics.get("trackRecordLength")  # longCount is a position count, not a time sample size
+         result.track_record_length = int(trl) if trl else config.DEFAULT_TRACK_RECORD_LENGTH
+         # Out-of-sample Sharpe when the platform reports it (Upgrade #6). Stays
+@@ -1091,7 +1155,8 @@
+         oos_sharpe = os_metrics.get("sharpe")
+         result.oos_sharpe = self._safe_float(oos_sharpe, None) if oos_sharpe is not None else None
+         result.valid = True
+-        await self.db.save_evidence(result.alpha_id,asdict(result),payload)
++        if ledger:ledger.complete(attempt["attempt_id"],asdict(result),metrics)
++        await self._persist_raw_result(result,payload,metrics)
+         # Persist the raw result the INSTANT it completes (incremental + crash-
+         # safe). A simulation that finished on WorldQuant must survive even if the
+         # run is interrupted before this whole generation's gather() returns --
+@@ -1101,17 +1166,6 @@
+         # batch); the batch save in _evaluate_population re-saves the SAME sharpe
+         # with those filled in, and the db_manager upsert's ">=" guard lets that
+         # enrichment through while keeping any genuinely better later result.
+-        try:
+-            await self.db.save_alpha(
+-                result.expression, result.universe, result.decay, result.alpha_id,
+-                self.generation, result.sharpe, result.turnover, None,
+-                _ast_depth(result.expression), result.skew, result.kurtosis,
+-                result.track_record_length, None,
+-                returns=result.returns, oos_sharpe=result.oos_sharpe,
+-                is_qualified=0, failed_checks=result.failed_checks,
+-            )
+-        except Exception as e:
+-            logger.warning(f"Could not persist raw simulation result: {e}")
+         # Return-orthogonality selection lever (Option B): fetch this alpha's
+         # daily PnL so _evaluate_population can damp the fitness of candidates
+         # whose RETURNS merely re-express the elite basket (raising ENB). Bounded
+@@ -1135,27 +1189,38 @@
+         self.result_cache[cache_key] = result
+         return result
+ 
++    async def _persist_raw_result(self,result,payload,metrics):
++        # Receipt ledger completion survives a failure of this derived DB save.
++        await self.db.save_checks(result.alpha_id,metrics)
++        await self.db.save_evidence(result.alpha_id,asdict(result),payload)
++        await self.db.save_alpha(result.expression,result.universe,result.decay,result.alpha_id,
++            self.generation,result.sharpe,result.turnover,None,_ast_depth(result.expression),
++            result.skew,result.kurtosis,result.track_record_length,None,
++            returns=result.returns,oos_sharpe=result.oos_sharpe,is_qualified=0,failed_checks=result.failed_checks)
++
+     # --- risk gates (C9) -----------------------------------------------------
+     def _passes_risk_gates(self, r) -> bool:
+         """True unless an alpha trips a hard risk gate BRAIN would reject on:
+         excessive IS max drawdown or non-positive margin. Both thresholds are
+         config knobs; a None threshold (or DRAWDOWN_MARGIN_GATE_ENABLED=False)
+-        disables that check, and a missing metric defaults to 0.0 so it passes."""
++        disables that check. Missing evidence fails a configured gate."""
+         if not getattr(config, "DRAWDOWN_MARGIN_GATE_ENABLED", True):
+             return True
+         max_dd = getattr(config, "MAX_DRAWDOWN", None)
+-        if max_dd is not None and abs(r.drawdown) > max_dd:
++        if max_dd is not None and (r.drawdown is None or abs(r.drawdown) > max_dd):
+             return False
+         min_margin = getattr(config, "MIN_MARGIN", None)
+-        if min_margin is not None and r.margin < min_margin:
++        if min_margin is not None and (r.margin is None or r.margin < min_margin):
+             return False
+         return True
+ 
+     def _risk_fail_reason(self, r) -> str:
+         max_dd = getattr(config, "MAX_DRAWDOWN", None)
++        if max_dd is not None and r.drawdown is None:return "unknown_drawdown"
+         if max_dd is not None and abs(r.drawdown) > max_dd:
+             return f"high_drawdown ({abs(r.drawdown):.2f} > {max_dd})"
+         min_margin = getattr(config, "MIN_MARGIN", None)
++        if min_margin is not None and r.margin is None:return "unknown_margin"
+         if min_margin is not None and r.margin < min_margin:
+             return f"low_margin ({r.margin:.5f} < {min_margin})"
+         return "risk_gate"
+@@ -1195,17 +1260,20 @@
+         the alpha as correlated and WITHHOLDS promotion rather than submitting
+         something we could not actually check."""
+         if not alpha_id:
+-            return 0.0
++            return None
+         attempts = max(1, getattr(config, "CORRELATION_CHECK_ATTEMPTS", 3))
+         for attempt in range(attempts):
+             try:
+                 resp = await self.network.request("GET", f"/alphas/{alpha_id}/correlations/self")
+                 data = resp.get("json")
++                if resp.get("status_code")!=200:raise ValueError("Correlation response not successful")
+                 records = []
+                 if isinstance(data, dict):
+-                    records = data.get("records") or data.get("results") or []
++                    records = data.get("records",data.get("results"))
++                    if not isinstance(records,list):raise ValueError("Correlation response missing explicit record list")
+                 elif isinstance(data, list):
+                     records = data
++                else:raise ValueError("Malformed correlation response")
+                 values = []
+                 for row in records:
+                     if isinstance(row, dict):
+@@ -1214,8 +1282,9 @@
+                         v = row[-1]
+                     else:
+                         v = row
+-                    if isinstance(v, (int, float)) and math.isfinite(v):
++                    if isinstance(v, (int, float)) and not isinstance(v,bool) and math.isfinite(v) and abs(v)<=1:
+                         values.append(abs(float(v)))
++                    else:raise ValueError("Unverifiable correlation row")
+                 return max(values) if values else 0.0
+             except Exception as e:
+                 logger.error(
+@@ -1224,7 +1293,7 @@
+                 if attempt + 1 < attempts:
+                     await asyncio.sleep(config.SIMULATION_POLL_INTERVAL_SECS)
+         # Every attempt failed -> fail CLOSED (treat as fully self-correlated).
+-        return 1.0
++        return None
+ 
+     @staticmethod
+     def _parse_pnl_records(payload):
+@@ -1322,6 +1391,8 @@
+         # enrichment save below, so the instrumentation columns populate WITHOUT
+         # touching any selection / mutation / simulation behaviour.
+         lineage_by_key = {}
++        seen_batch=set()
++        existing_population_keys={f'{r["expression"]}|{r["universe"]}|{r["decay"]}' for r in self.population}
+         for cand in candidates:
+             expr = cand.get("expression")
+             if not expr:
+@@ -1334,9 +1405,12 @@
+             if decay is None:
+                 decay = random.choice(config.DECAYS)
+             key = f"{canonical}|{universe}|{decay}"
++            if key in seen_batch or key in existing_population_keys:continue
++            seen_batch.add(key)
+             if key in self.evaluated_canon and key not in self._recover_pending_keys:
+                 continue
+             self.evaluated_canon.add(key)
++            self._proposal_lineage[key]={name:cand.get(name) for name in ("origin","parent_id","mutation_type")}
+             prepared.append((canonical, universe, decay))
+             if cand.get("origin") or cand.get("parent_id") or cand.get("mutation_type"):
+                 lineage_by_key.setdefault(key, {
+@@ -1383,7 +1457,7 @@
+         # booking every remaining alpha as a loser.
+         clean = []
+         for item in results:
+-            if isinstance(item, AuthenticationError):
++            if isinstance(item, (AuthenticationError,IndeterminateAttemptError)):
+                 raise item
+             if isinstance(item, BaseException):
+                 logger.warning(f"Simulation task failed; skipping alpha: {item}")
+@@ -1977,6 +2051,39 @@
+                 overflow.append(rec)
+         return kept + overflow
+ 
++    async def _select_generation_survivors(self):
++        ordered=self._enforce_field_diversity(self._enforce_skeleton_diversity(self._nsga_ii_sort(self.population)))
++        size=config.POPULATION_SIZE
++        if not getattr(config,"BASKET_SELECTION_ENABLED",False):return ordered[:size]
++        primary=[r for r in ordered if r.get("universe")==config.PRIMARY_UNIVERSE][:max(size*3,100)]
++        if len(primary)<2:
++            self.basket_report={"reason":"insufficient_primary_regime; base ranking retained"}
++            return ordered[:size]
++        pnls={}
++        for r in primary:
++            aid=r.get("alpha_id")
++            if not aid:continue
++            series=self._pnl_by_alpha_id.get(aid)
++            if series is None:
++                rows=await self.db.load_pnl(aid)
++                series=dict(rows) if rows else None
++                if series:self._pnl_by_alpha_id[aid]=series
++            if series:pnls[aid]=series
++        from forge2_portfolio import select_basket
++        selected,report=select_basket(primary,pnls,getattr(config,"FIELD_METADATA",{}),size,
++            min_overlap=config.BASKET_MIN_OVERLAP,max_abs_correlation=config.BASKET_MAX_CORRELATION,
++            min_residual_fraction=config.BASKET_MIN_RESIDUAL,max_dataset_fraction=config.BASKET_DATASET_FRACTION,
++            explore_fraction=config.BASKET_EXPLORATION_FRACTION)
++        if "base ranking retained" in report["reason"]:
++            # No financial-diversity claim. Preserve base behavior including
++            # other universes when evidence cannot support a measured basket.
++            self.basket_report=report
++            return ordered[:size]
++        report["region"]=config.DEFAULT_REGION;report["delay"]=config.DEFAULT_DELAY
++        report["universe"]=config.PRIMARY_UNIVERSE
++        self.basket_report=report
++        return selected
++
+     # --- selection -----------------------------------------------------------
+     def _nsga_ii_sort(self, population):
+         n = len(population)
+@@ -2247,7 +2354,7 @@
+         start_gen = min(self.generation, generations)
+         for gen in range(start_gen, generations):
+             self.generation = gen
+-            self.population = self._enforce_field_diversity(self._enforce_skeleton_diversity(self._nsga_ii_sort(self.population)))[: config.POPULATION_SIZE]
++            self.population = await self._select_generation_survivors()
+             if not self.population:
+                 logger.warning("Population collapsed to empty; re-seeding.")
+                 await self._bootstrap_population()
+@@ -2319,7 +2426,7 @@
+             # are NEVER re-simulated. Only genuinely new offspring are evaluated.
+             await self._evaluate_population(offspring, allow_grid=True)
+             self._recover_pending_keys.clear()
+-            self.population = self._enforce_field_diversity(self._enforce_skeleton_diversity(self._nsga_ii_sort(self.population)))[: config.POPULATION_SIZE]
++            self.population = await self._select_generation_survivors()
+             self._trim_state()
+             self._save_checkpoint()
+ 
+--- a/submission_scout.py
++++ b/submission_scout.py
+@@ -35,6 +35,7 @@
+ """
+ import argparse
+ import asyncio
++import math
+ import datetime
+ 
+ import config
+@@ -162,15 +163,20 @@
+         return None
+     if isinstance(body, dict):
+         if isinstance(body.get("max"), (int, float)):
+-            return abs(float(body["max"]))
++            value=body["max"]
++            return abs(float(value)) if not isinstance(value,bool) and math.isfinite(value) and abs(value)<=1 else None
+         records = body.get("records")
+         if isinstance(records, list) and records:
+             vals = []
+             for row in records:
+                 if isinstance(row, (list, tuple)) and row and isinstance(row[0], (int, float)):
++                    if isinstance(row[0],bool) or not math.isfinite(row[0]) or abs(row[0])>1:return None
+                     vals.append(abs(float(row[0])))
+                 elif isinstance(row, dict) and isinstance(row.get("correlation"), (int, float)):
+-                    vals.append(abs(float(row["correlation"])))
++                    value=row["correlation"]
++                    if isinstance(value,bool) or not math.isfinite(value) or abs(value)>1:return None
++                    vals.append(abs(float(value)))
++                else:return None
+             if vals:
+                 return max(vals)
+         if isinstance(records, list) and not records:
+--- a/syntax_validator.py
++++ b/syntax_validator.py
+@@ -2,6 +2,8 @@
+ import copy
+ import logging
+ import re
++import io
++import tokenize
+ from functools import lru_cache
+ 
+ import config
+@@ -91,38 +93,23 @@
+ 
+ @lru_cache(maxsize=8192)
+ def _canonicalize_cached(expression: str) -> str:
+-    """Pure, cacheable canonicalization. Raises on unparseable input."""
+-    tree = _parse_expression(expression)
+-
+-    class CanonicalTransformer(ast.NodeTransformer):
+-        def visit_BinOp(self, node):
+-            node = self.generic_visit(node)
+-            if isinstance(node.op, SyntaxValidator.COMMUTATIVE_BINOPS):
+-                operands = self._flatten_binop(node, type(node.op))
+-                operands.sort(key=ast.unparse)
+-                return self._build_binop(operands, type(node.op))
+-            return node
+-
+-        def visit_Call(self, node):
+-            node = self.generic_visit(node)
+-            if isinstance(node.func, ast.Name) and node.func.id.lower() in SyntaxValidator.COMMUTATIVE_FUNCTIONS:
+-                node.args = sorted(node.args, key=ast.unparse)
+-            return node
+-
+-        def _flatten_binop(self, node, op_type):
+-            if isinstance(node, ast.BinOp) and isinstance(node.op, op_type):
+-                return self._flatten_binop(node.left, op_type) + self._flatten_binop(node.right, op_type)
+-            return [node]
+-
+-        def _build_binop(self, operands, op_type):
+-            current = operands[0]
+-            for operand in operands[1:]:
+-                current = ast.BinOp(left=current, op=op_type(), right=operand)
+-            return current
+-
+-    new_tree = CanonicalTransformer().visit(tree)
+-    ast.fix_missing_locations(new_tree)
+-    return ast.unparse(new_tree)
++    """Syntax-only formatting: never reassociate/reorder executable operands.
++    Preserve original numeric/string literal lexemes, including excess decimal
++    precision that Python's AST float would otherwise round before emission.
++    """
++    text=ast.unparse(_parse_expression(expression))
++    literal_types={tokenize.NUMBER,tokenize.STRING}
++    original=[t for t in tokenize.generate_tokens(io.StringIO(expression).readline) if t.type in literal_types]
++    emitted=[t for t in tokenize.generate_tokens(io.StringIO(text).readline) if t.type in literal_types]
++    if len(original)!=len(emitted) or any(a.type!=b.type for a,b in zip(original,emitted)):
++        raise ValueError("Canonical formatting changed literal structure")
++    lines=text.splitlines(keepends=True)
++    offsets=[0]
++    for line in lines:offsets.append(offsets[-1]+len(line))
++    for old,new in reversed(list(zip(original,emitted))):
++        lo=offsets[new.start[0]-1]+new.start[1];hi=offsets[new.end[0]-1]+new.end[1]
++        text=text[:lo]+old.string+text[hi:]
++    return text
+ 
+ 
+ class SyntaxValidator:

@@ -1,0 +1,705 @@
+{
+  "project": "BrainForge",
+  "bundle": "Full available project reconstruction with v2 overlay",
+  "date": "2026-10-03",
+  "scope": {
+    "v2_python_modules": 36,
+    "historical_utility_modules": 10,
+    "project_row_exports": 52,
+    "normalized_catalog_included": true,
+    "original_snapshot_archives_included": 2,
+    "git_history_included": false,
+    "live_databases_or_credentials_included": false
+  },
+  "gaps": [
+    "Historical platform_snapshot.py mirror has damaged syntax; preserved only as docs/legacy/platform_snapshot.py.txt.",
+    "Historical data_fields.json and seed_pool.json malformed; markdown preserved, no invented valid assets.",
+    "Current local checkout/GitHub branch and live state were not supplied."
+  ],
+  "validation": {
+    "offline_tests_passed": 136,
+    "genetic_outputs_checked": 10000,
+    "catalog_smoke_checks_passed": 54,
+    "v2_source_byte_identical": true,
+    "additional_utilities_syntax_only": true,
+    "brain_calls": 0
+  },
+  "files": {
+    ".env.example": {
+      "sha256": "814740417359e5320132f928ea8774cbe9f8191255dd3372c2eb39af8014724c",
+      "bytes": 133
+    },
+    ".gitignore": {
+      "sha256": "8fd07495d0e40307dad4e3a9fd67f3d2d6cf3844fbecd79874d48238fa634447",
+      "bytes": 486
+    },
+    ".vscode/settings.json": {
+      "sha256": "a04880a5d4b09bf85a6b6519fbe8e7a11002a9ac1e31654544da72487d9eedfb",
+      "bytes": 276
+    },
+    ".vscode/tasks.json": {
+      "sha256": "ea89c55cd5e67a995fe1c91aa9bff11a529bd93d4f0ee449b1785489ac437e95",
+      "bytes": 481
+    },
+    "CLI_HANDOFF.md": {
+      "sha256": "d245e020f5cbd96880eaad635a4cc0f9903ed8f5aba75235e21fa01a6b103bd4",
+      "bytes": 2360
+    },
+    "README.md": {
+      "sha256": "3549652274bbf0aac61f2758f1b49f7a68e31ba32810bdecb6d91fa80c060981",
+      "bytes": 3292
+    },
+    "docs/V2_RELEASE_README.md": {
+      "sha256": "e6542a8f33e53bfd9d45042eb00e31d1ed716d02fc20d492d97bea8cd8e1f535",
+      "bytes": 7453
+    },
+    "docs/legacy/platform_snapshot.py.txt": {
+      "sha256": "876c5f3036bbe4d1f9698cc50bdf291155568ed87aae18effbd5746141519de4",
+      "bytes": 38256
+    },
+    "docs/legacy/requirements-original.txt": {
+      "sha256": "c1cde7facfea71cfc983bdb8c856e41abc25ae879ad662a39d807318dea71c60",
+      "bytes": 556
+    },
+    "docs/notion-export/Alpha Generation _ Research Cross-Check _ Upgrade Roadmap.md": {
+      "sha256": "53e9c12fed8ac1a5045d7d69d6de668fb2f9b77104e94f8db1593dc0cee4005a",
+      "bytes": 14062
+    },
+    "docs/notion-export/Alpha Generator _ Research-Backed Upgrade Plan.md": {
+      "sha256": "68acf2357ce7e1cea0d138c9f96bf1dbed6312af879d9e8291d1d8e0c7d8e747",
+      "bytes": 10988
+    },
+    "docs/notion-export/Alpha Logic Upgrade _ LLM _ ML Integration Brainstorm.md": {
+      "sha256": "7149205dda9a08fbdffb0d280e408f5b4ce48841a84340c75f7a673265c77839",
+      "bytes": 13915
+    },
+    "docs/notion-export/Alpha Strategy Overhaul _ Data-First Field Selection.md": {
+      "sha256": "f097a329b6cf2e8f373424f23af5c61d8d49af08d59e4416ed9b7b514eabad2d",
+      "bytes": 11100
+    },
+    "docs/notion-export/Brain Forge _ Context Handoff _Sept 2026_.md": {
+      "sha256": "0408a95dd862a6ad2ee21a7a8da9d81cb3f1f4b0a2d5d517a3a21321a6cf4ea8",
+      "bytes": 20004
+    },
+    "docs/notion-export/Brain Forge _ New Architecture _ CLI Review Brief.md": {
+      "sha256": "4148ee03d7b9d2cd831485aca6c112f0d95637b23de145a14e32a57f100fa1ae",
+      "bytes": 8008
+    },
+    "docs/notion-export/BrainForge _ Alpha Submission Strategy _ Decorrelation Selector _Senior Quant_.md": {
+      "sha256": "d9cce57bad2ae8a217d5e0109e66db3616e181082c917e588ea0addaddf02131",
+      "bytes": 15637
+    },
+    "docs/notion-export/BrainForge _ Architectural Flaws _ Loopholes Audit _Senior Quant_.md": {
+      "sha256": "43c66dad1a8fd52508f6244e1ef7dd0fd357e1bbff356b832250b711d78afda2",
+      "bytes": 16181
+    },
+    "docs/notion-export/BrainForge _ Implementation Pack_ Decorrelation Selector _SAFE_ _ Surrogate Pre-Screener _SHADOW_.md": {
+      "sha256": "e0965490c47d230f09ceb31f67a94efc8397c1e24683f3e91d951c8f5f751bfc",
+      "bytes": 28046
+    },
+    "docs/notion-export/BrainForge _ Research-Backed Upgrade Review _ Roadmap _Senior Quant_.md": {
+      "sha256": "71da0b7582e794ad05722a7ac9bf071290548cdcae67df0d26d1c586e1778c1b",
+      "bytes": 21285
+    },
+    "docs/notion-export/BrainForge v2 _ Lead-Quant Research _ Implemented Generator Upgrade.md": {
+      "sha256": "c613982e34356128a8819db7357c51d4cefd37b55100ee0ef34e5dd819ea1485",
+      "bytes": 33684
+    },
+    "docs/notion-export/Consultant Generator _ Implemented Offline Upgrade _ Research _Oct 2026_.md": {
+      "sha256": "cffbe28aa6a8f5fec6255f2fad82eea881bfdd63441150e7872e178b8c79c642",
+      "bytes": 10400
+    },
+    "docs/notion-export/Earnings4 Dedicated Miner _ Strategy _ Architecture.md": {
+      "sha256": "0c7b4eeb44be0294e53413b424fe843e7cf04f3dd06c5173baccab733df88284",
+      "bytes": 12487
+    },
+    "docs/notion-export/Generator Upgrade _ Deep Research _Sept 2026_.md": {
+      "sha256": "72d1473916faccca3a926173b863e9826029a6a4f2942125c158c8071056f8f2",
+      "bytes": 23551
+    },
+    "docs/notion-export/Master Prompt _ Alpha Generator Research _ Upgrade Review.md": {
+      "sha256": "1e7b157c76c86d53514148773424d2a8c75196b373404a51a0e2710afc1cd105",
+      "bytes": 8753
+    },
+    "docs/notion-export/PROJECT_CONTEXT.md.md": {
+      "sha256": "77eb4818238837b3e44403f78109fec4064b72a07f40b5f678df30fb18a7728e",
+      "bytes": 6961
+    },
+    "docs/notion-export/README.md.md": {
+      "sha256": "f22dc5b4636c9a580c143eb7de567ceb8a3e85e90d68aeea25db87712ab60f29",
+      "bytes": 3235
+    },
+    "docs/notion-export/Run Diagnostics _ Post-Mortem System _ Design Spec.md": {
+      "sha256": "aac7e003a851ce8214acc5b9d60cbeb12275d099a467576bb58a3735b4dc0d5f",
+      "bytes": 15844
+    },
+    "docs/notion-export/analyze_run.py.md": {
+      "sha256": "bcf2815e73d4c0aa3211f011853171f618b5acc40b47dac0836356fae6eb66f1",
+      "bytes": 16798
+    },
+    "docs/notion-export/backfill_pnl.py.md": {
+      "sha256": "3ddb9e28093a3c1da11899a75e7b1a4d41e2a48d323a2f591bca9b88dca2c513",
+      "bytes": 5383
+    },
+    "docs/notion-export/code.py.md": {
+      "sha256": "f2ed6c24dab1f560019683ed8f95762dd40f72094eb3c1c602ce366fa786ae6e",
+      "bytes": 4006
+    },
+    "docs/notion-export/config.py.md": {
+      "sha256": "61a99b9b8928414ea1c7f52a6b53f270c440f65e5945973df189215831a0ce5f",
+      "bytes": 80258
+    },
+    "docs/notion-export/data_fields.json.md": {
+      "sha256": "dbd723e7ae73563090c83ef4d3974dcbb4269900911b2847b385e0ee8c005586",
+      "bytes": 113022
+    },
+    "docs/notion-export/db_manager.py.md": {
+      "sha256": "485c8be527fe73693de25c6695f4a304c096e784a6d53767319973fbd8de9394",
+      "bytes": 19051
+    },
+    "docs/notion-export/decorrelation_selector.py.md": {
+      "sha256": "c00b964ff3ec37be87af92f3c09699a9a8667291e62204fae153800e01c4024d",
+      "bytes": 6684
+    },
+    "docs/notion-export/evaluate_prescreener.py.md": {
+      "sha256": "3411cad6b9cea5200619add8f5f784d5cb8f9b0f13d84ac7a867c113e407e060",
+      "bytes": 2809
+    },
+    "docs/notion-export/field_harvester.py.md": {
+      "sha256": "f882eca86ab082763a146283fccab00e0284266e72e4982bf75385a157ca445a",
+      "bytes": 25532
+    },
+    "docs/notion-export/forge2_bandit.py.md": {
+      "sha256": "099517972ecf5cf3bd855a2bc9fd6b342e3ca83b043285bb77292c3bdc8ac4d0",
+      "bytes": 7421
+    },
+    "docs/notion-export/forge2_campaign.py.md": {
+      "sha256": "1911ad79446fe5f8d6d088fae9b5a869267e090c979b780cc8d7d286fd220e6e",
+      "bytes": 11113
+    },
+    "docs/notion-export/forge2_catalog.py.md": {
+      "sha256": "844e7fc5729ca919e5648ee76c8a3a6eae67f59e32442c3b42d262c2b96ace8d",
+      "bytes": 13022
+    },
+    "docs/notion-export/forge2_config.py.md": {
+      "sha256": "00973716c899f7b8bc2727c2e19655772feb35d92ec67c008bdf36b64b0bb386",
+      "bytes": 9508
+    },
+    "docs/notion-export/forge2_factory.py.md": {
+      "sha256": "3cf1b1d31e9bf9038f331d642c5432d6d9797c21d080ccbeae6077fd2378a895",
+      "bytes": 8192
+    },
+    "docs/notion-export/forge2_smoke_test.py.md": {
+      "sha256": "8b49a8593f1a848512d5dbeb1db466f4809e05412f36fb56da0ba9d2987382ce",
+      "bytes": 12174
+    },
+    "docs/notion-export/forge2_vocabulary.py.md": {
+      "sha256": "18e384cbead2ae721c942469695ce0b91d14f8162f8aab3898645362c747d7c0",
+      "bytes": 17148
+    },
+    "docs/notion-export/hyper_tuner.py.md": {
+      "sha256": "7b438d44b248c0556e3e2b2ddc019a7c0967e3bd635bd21f6188526c911f2cd3",
+      "bytes": 3093
+    },
+    "docs/notion-export/inject_seeds.py.md": {
+      "sha256": "4c15bad81b56a895b7283c377f73a7d8c25dd4848653070074c70ca1dc974ab9",
+      "bytes": 8619
+    },
+    "docs/notion-export/llm_seed_generator.py.md": {
+      "sha256": "4555f5b07b43a17972fdac32928b1a21d8e8f80cf6dcb5b88e1dd24950aa60bc",
+      "bytes": 29926
+    },
+    "docs/notion-export/network_engine.py.md": {
+      "sha256": "98fc6667b5cb40386b377f29a7552e94700495a1fd8896d29a6bf0180e9556ea",
+      "bytes": 23044
+    },
+    "docs/notion-export/oos_deflation.py.md": {
+      "sha256": "de22c1625806930974f409b1ffc61d71ddbd046ce0d738b6eef5a83e6094d1b8",
+      "bytes": 12960
+    },
+    "docs/notion-export/operators.json.md": {
+      "sha256": "f9e7d2662eddd8f2121b1f4141c637e608615325d0f6d9ef33a3acbe6bd67a3d",
+      "bytes": 23820
+    },
+    "docs/notion-export/orchestrator.py.md": {
+      "sha256": "3d122eb075fca35d4d3e06a5c19923504a7241a7b57e0fd2f8ee258d245aefd2",
+      "bytes": 113592
+    },
+    "docs/notion-export/platform_snapshot.py.md": {
+      "sha256": "d46d714f901b51ee5f01f090aa501029d06f7ba070ea1a6d13d223d4f6733488",
+      "bytes": 38269
+    },
+    "docs/notion-export/probe_wq.py.md": {
+      "sha256": "e9687ff56f58145d534d602b1c1edd5fa507c391fcb7518aa750e45e0a9f5098",
+      "bytes": 4479
+    },
+    "docs/notion-export/requirements.txt.md": {
+      "sha256": "10f6a28418d0cbb60e307d1ac1739175c5ee44ee6b941a22a6fd5d077883f0de",
+      "bytes": 573
+    },
+    "docs/notion-export/review_winners.py.md": {
+      "sha256": "7c89f0eb01c003863fb308ee04d19d1bb723bc88e1e479425e9bd55e1a7ac257",
+      "bytes": 1271
+    },
+    "docs/notion-export/run_diagnostics.py.md": {
+      "sha256": "f453127141d9e0e80a738a63340bdf7ba771e894db01ff5ed354c40b89c921c9",
+      "bytes": 55915
+    },
+    "docs/notion-export/seed_pool.json.md": {
+      "sha256": "e42e2c390a7b442ff315d94d35e625b85f5c0a2a97b3d7978e7e6297dc0203e0",
+      "bytes": 105489
+    },
+    "docs/notion-export/submission_scout.py.md": {
+      "sha256": "0eae7ad812553b3f7db5b772f337092f768afa5d8d8259f83fbcac174fd9c73c",
+      "bytes": 16830
+    },
+    "docs/notion-export/submit_to_worldquant.py.md": {
+      "sha256": "c91f9405daf8d88f78e7e1ee28f59b5b0ddf10c2444df1af61fbf1a599d412ec",
+      "bytes": 7932
+    },
+    "docs/notion-export/surrogate_prescreener.py.md": {
+      "sha256": "f36803737f57e4f4674ab6e8b0ecbed5f130c695e957640df8476ad9cf20087e",
+      "bytes": 4883
+    },
+    "docs/notion-export/syntax_validator.py.md": {
+      "sha256": "83d7ce5feb4024bf4c9533615ecc8241c37418d30d844dfdcb65e173901ddd48",
+      "bytes": 12902
+    },
+    "docs/notion-export/test_alpha.py.md": {
+      "sha256": "d1c0dfa3e2df512a55350d31e309e2863c240b7a63ed37e4b66a104177cb64ad",
+      "bytes": 2423
+    },
+    "docs/research/full-upgrade-report-v2.md": {
+      "sha256": "04b6bb24a98222b0cb64184bc0ff3e3dff1ae29415e605217cf2390b6c31f6cb",
+      "bytes": 25729
+    },
+    "docs/research/independent-review-v2.md": {
+      "sha256": "ecdc23bcfe50018c25b585c1f8e371406a972c7dd7c831b599688c04cf3ae583",
+      "bytes": 14023
+    },
+    "docs/research/quant-primary-sources-v2.md": {
+      "sha256": "679b23c49eba27a147d978dc0e5f812f74c1050dc40de2538877541161e5d021",
+      "bytes": 31203
+    },
+    "docs/research/review-fixes-v2.md": {
+      "sha256": "2141a6d82b6f1005309a6c18e02dd94e0ec776ae4dc888191d2de9028e102756",
+      "bytes": 2767
+    },
+    "docs/research/review-resolution-v2.md": {
+      "sha256": "9d2e933f43e7b0c82fd331d3fe947a540f48e5630f6786169a945ab617e31c80",
+      "bytes": 9221
+    },
+    "docs/research/sources/llvm-langref.html": {
+      "sha256": "789e29dfcd7a216938de2cbed2795d04e0cbae89474455adaf6a221be4c88f2c",
+      "bytes": 3130958
+    },
+    "docs/research/sources/llvm-langref.txt": {
+      "sha256": "959f4e112d5f961a6b1ea5fcca74502474a54fa3b22f60f32a3edaa0fadd9786",
+      "bytes": 1116894
+    },
+    "docs/research/sources/newey-west-1987-p2.png": {
+      "sha256": "e614038173e076ceec57f951799ac4f71f26dadba4451fd22371f249aecad578",
+      "bytes": 284013
+    },
+    "docs/research/sources/newey-west-1987-p3.png": {
+      "sha256": "20a1fb3f7a1b2ba560b60132032e788bbbf84868be9f379bc05d237968024e50",
+      "bytes": 299425
+    },
+    "docs/research/sources/newey-west-1987.pdf": {
+      "sha256": "a230b0b6028e1e08f6453e1711f3ea5bf2d5af06fb4248cacbb049eefadf8abe",
+      "bytes": 569155
+    },
+    "docs/research/sources/newey-west-1987.txt": {
+      "sha256": "9e43591d85d480f056a1e21f8ddfa0de6ca3a31ca1f1bc0428a9e93b52b1f6eb",
+      "bytes": 7
+    },
+    "docs/research/sources/politis-romano-1994-p1.png": {
+      "sha256": "733a0cd5bf0291c0325e9564feace9053e36e11691b123c44566a1076a4d751e",
+      "bytes": 548930
+    },
+    "docs/research/sources/politis-romano-1994-p2.png": {
+      "sha256": "d173b348f470df7cfb813de0faca3fbfe5d575fba97fcd08ce135248ce25b8e0",
+      "bytes": 585840
+    },
+    "docs/research/sources/politis-romano-1994-p3.png": {
+      "sha256": "3a389f3c0b75be5fd64ab19d6ba46be54175b7efff738f6d8561127d164a02cc",
+      "bytes": 512792
+    },
+    "docs/research/sources/politis-romano-1994.pdf": {
+      "sha256": "269f5437920af4861360d4e1a74a77f3aa6a3d3f070cd52a9f0e8502822a5c35",
+      "bytes": 1984053
+    },
+    "docs/research/sources/politis-romano-1994.txt": {
+      "sha256": "1708940227de929934e4bae47bf4a207918837bc4240070f2c6c8af5177eab17",
+      "bytes": 11
+    },
+    "docs/research/sources/rfc9110.html": {
+      "sha256": "d431760660ea44e130f6e919dab216df2d0b3a490567a98089267523368fe1e5",
+      "bytes": 1187554
+    },
+    "docs/research/sources/rfc9110.txt": {
+      "sha256": "d292f734a947211a921549a8758e85e12f6b8091f2dd91ce0cce5370d3a5f557",
+      "bytes": 502635
+    },
+    "evidence/MANIFEST.json": {
+      "sha256": "8bab58abf171b902fdc4117a54d4c5ea9fff877e7226006fc3397b07576ab745",
+      "bytes": 12470
+    },
+    "evidence/brainforge-notion-to-v2.patch": {
+      "sha256": "fa886ae1b87cda9a0ded4df383092affade6a4736f85e7a5644af12a39889258",
+      "bytes": 223918
+    },
+    "evidence/brainforge-v1-to-v2.patch": {
+      "sha256": "54c9222e81c48a78a60c4f907b6da5db67d1fa2f5a649b606636ac33988f7b5d",
+      "bytes": 92193
+    },
+    "evidence/catalog-provenance.json": {
+      "sha256": "9eea9fd705c3000694619c208d6f552735170b503ae28d0e0843c551185e0e5b",
+      "bytes": 584
+    },
+    "evidence/coverage_chart.json": {
+      "sha256": "58944f9be9f49635cd6b329da9a157a28ff913d57bc70700680f7202d65d05ae",
+      "bytes": 1237
+    },
+    "evidence/coverage_evidence.json": {
+      "sha256": "c52f952ee1ff315018212e3c364906350fa45fa359f2ebfe9c3a6baee2b01321",
+      "bytes": 3199
+    },
+    "evidence/coverage_profile.txt": {
+      "sha256": "9e405d59095932a74d792ff79c97b246795d16288354ec5f0df373bc08269949",
+      "bytes": 510
+    },
+    "evidence/coverage_replicates.csv": {
+      "sha256": "4b3b814807366d439013c9b48468a1cf20698914ed890f76b6d5967ec62b20d1",
+      "bytes": 163640
+    },
+    "evidence/coverage_validation.py": {
+      "sha256": "84f150bee8167424e1005b6b055e1a84b206d79f5e6d0c40a2aa886c8d0a6c7c",
+      "bytes": 6008
+    },
+    "evidence/final-verification.log": {
+      "sha256": "34a9f4810969c8d9cc866db86dbc13db7dc81cdc2441c18c0819b6e326e59564",
+      "bytes": 3198
+    },
+    "evidence/full-project-validation.log": {
+      "sha256": "a262dbee563153e4ac7853ae5fa46a17c4dc9455ab615762228184e4384a4f81",
+      "bytes": 3200
+    },
+    "evidence/fuzz-results.json": {
+      "sha256": "af5029a2c3b93e62582449158ae326428df469e4b6ce669dd2f0e7b34c22ec06",
+      "bytes": 239
+    },
+    "evidence/fuzz_genetics.py": {
+      "sha256": "79b69d79e528ef8184e72f73e28d0fb19d869adbc60267c4458b69525aa5a968",
+      "bytes": 2379
+    },
+    "evidence/notion-export-index.json": {
+      "sha256": "a8800876b773f304626c76015e1d2212fde774c73bbb684b9fef145eda2aac87",
+      "bytes": 14762
+    },
+    "evidence/prior-release-manifest.json": {
+      "sha256": "ebe5cb5410fe40c17dc796f047d046919069a7abc0c6165f78b9c31a63b21c57",
+      "bytes": 9636
+    },
+    "evidence/recorded-snapshot-narrow.tar.gz": {
+      "sha256": "b3c1e09d3cad39b9f70cf07edce0c228a0b3f3e55d63cb587ece81e565380b50",
+      "bytes": 6978825
+    },
+    "evidence/recorded-snapshot.tgz": {
+      "sha256": "afad4599df61aa03f89794cc84b0ed9fd1de86edb14f25437ab0d61ccbde4773",
+      "bytes": 14949304
+    },
+    "evidence/uncertainty_coverage_notion_agent_chart.html": {
+      "sha256": "166b165b9191af3c7198d5950114fccafbf6d5b3ac1c065d14950bb5a8a8b2aa",
+      "bytes": 40042
+    },
+    "pytest.ini": {
+      "sha256": "4d5193eb36807e4622451417a9fe7bea71e7307137cd05cc214332e514fd9527",
+      "bytes": 44
+    },
+    "requirements-offline.txt": {
+      "sha256": "23fdcf4f51f46b67050f32acc4cd0febe0d391abeb1798675ec2401877647c25",
+      "bytes": 212
+    },
+    "requirements-optional.txt": {
+      "sha256": "8cbbad478b8d02d870a6445ece14912e6463f5ebee5eeca549a2c6252c249603",
+      "bytes": 279
+    },
+    "requirements.txt": {
+      "sha256": "81f88d4a2acc22365094ac686e3506e40efdb7e5592af6e5a830a3da579deeca",
+      "bytes": 28
+    },
+    "scripts/unpack_recorded_snapshots.py": {
+      "sha256": "a756e255c792e1d4e8508d23807cce192d5cd4237268d68e1ef5a780b7c21ce3",
+      "bytes": 415
+    },
+    "scripts/verify_manifest.py": {
+      "sha256": "af910af5cde3b1b4384d58cc36db005bc8fcc761d9f3419d93ee9ce7ec541285",
+      "bytes": 506
+    },
+    "scripts/verify_offline.sh": {
+      "sha256": "5b536a381ed98e7a404c46720b121fa056e95ef4205cc3df21ac53f9cee3e128",
+      "bytes": 568
+    },
+    "src/brain_fields_merged.json": {
+      "sha256": "2b84f948b5098bd0ff6a53841c7b32dab86626099525a670ace38f9d2aeb142b",
+      "bytes": 89309928
+    },
+    "src/config.py": {
+      "sha256": "1b40fa73d5f95a40a2bb269d05ec8215a24b86f44ef9e0e4fc0a67556d5bfb91",
+      "bytes": 80816
+    },
+    "src/db_manager.py": {
+      "sha256": "ce98d298cffb86de36a266a4bba6e984a145576b9a93b3a734841cf28260e24f",
+      "bytes": 21649
+    },
+    "src/decorrelation_selector.py": {
+      "sha256": "a5193bb75489664c27a0b44d4edd850fc6d0ede0280dbc640886d00195bb791a",
+      "bytes": 5975
+    },
+    "src/forge2_bandit.py": {
+      "sha256": "64289351d69305fac2dae239ce4bf0415032ecf6810bc8606ba07757035bf433",
+      "bytes": 9546
+    },
+    "src/forge2_build_catalog.py": {
+      "sha256": "c27d8bcdaffe54ffcecd868db12773d84ed0ba70f46a9afc1b5c7148dd674795",
+      "bytes": 4060
+    },
+    "src/forge2_campaign.py": {
+      "sha256": "244c9f640d9f1015dedcb46799c9411dbe5699c6c9c7a027354e3a8e53689ad7",
+      "bytes": 12564
+    },
+    "src/forge2_catalog.py": {
+      "sha256": "972175f74ad289b9ddd87e28e76253ad2d2c8d0ad869b21bc84616480e1e2eb8",
+      "bytes": 15667
+    },
+    "src/forge2_checks.py": {
+      "sha256": "a4c090cc527ba17788358722b9c47f21ebafcb4b53041c30f430c11cf4dc46e1",
+      "bytes": 2587
+    },
+    "src/forge2_config.py": {
+      "sha256": "b3cedb968f3914323263749031474e5e27826cf84b6137cf672121c065a241e3",
+      "bytes": 10260
+    },
+    "src/forge2_cscv.py": {
+      "sha256": "a73a064c3c76e0240ef26ecb3ba0804844e71f06ec673021fe1b51bf703dd16d",
+      "bytes": 2296
+    },
+    "src/forge2_experiments.py": {
+      "sha256": "f3047201c2f53c999de6886ecf6dc559a600236d0dc88ab513f67f68fbc4924e",
+      "bytes": 7170
+    },
+    "src/forge2_expression.py": {
+      "sha256": "215dca7485159ce9e5be3b0c82cc02e5dd49191088b89bedef2808405d093ebe",
+      "bytes": 13405
+    },
+    "src/forge2_factory.py": {
+      "sha256": "5631bc1e65e1213df08b3197fd1ec9055da9b68cb5a411c538b21a0d95108eef",
+      "bytes": 13124
+    },
+    "src/forge2_inference.py": {
+      "sha256": "bbb39ae265f87ae59f8047e9396ceb1bd1250f48c47f16a6a056caeb2890d357",
+      "bytes": 6862
+    },
+    "src/forge2_migrate_offline.py": {
+      "sha256": "cbcc033af0d5c6ad7eb8d09464b244da3f7f8efa7a70575a5d789b7c01e57973",
+      "bytes": 10288
+    },
+    "src/forge2_offline_review.py": {
+      "sha256": "3d0a7f465e1fa88907c2a9d50fa41abb954a5e8acbd0eb42cd846a96ba55c526",
+      "bytes": 4021
+    },
+    "src/forge2_policy.py": {
+      "sha256": "399b33b387cdea609a806b8f83d122ca68066af2049fe55503c73ee9e7c707b3",
+      "bytes": 2547
+    },
+    "src/forge2_portfolio.py": {
+      "sha256": "29a4563c9645603176899c01a360667fe88b476cad0c569a793bc7ff889c1fc0",
+      "bytes": 6742
+    },
+    "src/forge2_protocol.py": {
+      "sha256": "ee3e1a045e6f6593f52fb96dd8959a5fb03ae761d2c2a7a1c02fdd4d85e66435",
+      "bytes": 8013
+    },
+    "src/forge2_quant_review.py": {
+      "sha256": "e455836982dfdbeb5af9077f5f7a7d667a062b65846300ed4b5d59817bde487b",
+      "bytes": 7731
+    },
+    "src/forge2_queue.py": {
+      "sha256": "95d944612433f84efb333f85f857be5cdd2e8c92425eb1b1fd6e007c0cd5f916",
+      "bytes": 1334
+    },
+    "src/forge2_search.py": {
+      "sha256": "e84d1d813e3c005075427ad720ef3532ffce591836d74fb209e83a25197f84d6",
+      "bytes": 2559
+    },
+    "src/forge2_smoke_test.py": {
+      "sha256": "5e9179dd99dcc63f15b8aac26e2654d589bd4386b615949e31646b11988e4249",
+      "bytes": 11968
+    },
+    "src/forge2_statistics.py": {
+      "sha256": "2bd49f66f1b2587830a21691bb1bde608fa8a3a1f194298156dcf84a0ac8c763",
+      "bytes": 1999
+    },
+    "src/forge2_storage.py": {
+      "sha256": "b6442c88d99530def65726343b97432544266218a87cef26434b93ac5ce48e26",
+      "bytes": 1653
+    },
+    "src/forge2_trials.py": {
+      "sha256": "a0a1f5548e4e753b138c8d5fceaaa9e775f76a9e405d64d6e06e6d72df424d0c",
+      "bytes": 2674
+    },
+    "src/forge2_vocabulary.py": {
+      "sha256": "5ef7444ed58066c7ae85f1c4448190588402fe752f456b18265fb3cb6d1d9ea0",
+      "bytes": 22144
+    },
+    "src/llm_seed_generator.py": {
+      "sha256": "12491f6c89fddda96226a16829fa00ae78bff4ea6cfde6290093a90520f93391",
+      "bytes": 29913
+    },
+    "src/network_engine.py": {
+      "sha256": "8f4e6ebc2cf4fa88d5e13e23f4373aec1534fba22788c0e402964a7da919515e",
+      "bytes": 24428
+    },
+    "src/oos_deflation.py": {
+      "sha256": "f555356826a2cffcbe9fc11ad8a69d86fd6413fbf5f9359ddd96ab26533a79cc",
+      "bytes": 12573
+    },
+    "src/operators.json": {
+      "sha256": "eadd8c1fb3630ad8be2bc1aeaf0ff931dceadeb4dc754c57a20c15003c1dc6b9",
+      "bytes": 29833
+    },
+    "src/orchestrator.py": {
+      "sha256": "afa6a8621bac5c0ed8335099753bd40bf676949eb08042bbd7af55fe5cf74f84",
+      "bytes": 130306
+    },
+    "src/run_diagnostics.py": {
+      "sha256": "b1ce3d3b27fb3252a696854b6b83f88f259753ed6b7a8eab194319602bb0c56e",
+      "bytes": 55902
+    },
+    "src/submission_scout.py": {
+      "sha256": "f038589dca62bd4162b80976674cf96212f85b61bd395d7b974cb6fdc0b58936",
+      "bytes": 17339
+    },
+    "src/submit_to_worldquant.py": {
+      "sha256": "a5c40d3ae74617b9b7ef4ab268c6a7c5ad8cbd3931ecb94be1afe77ee62760c7",
+      "bytes": 7662
+    },
+    "src/surrogate_prescreener.py": {
+      "sha256": "8bd64f07a79afcf3ee7b68097558e418357b10787b9c18955131b72627f9ff3a",
+      "bytes": 5390
+    },
+    "src/syntax_validator.py": {
+      "sha256": "9f725b57fd55882cd10130054961b306b44ca2206a173ba764eb9d5c1b901ea9",
+      "bytes": 12540
+    },
+    "tests/conftest.py": {
+      "sha256": "aef8a6f62a3a2c03e8dac8a617c33714aa9586b50c75a845ad89a1bc2d569924",
+      "bytes": 564
+    },
+    "tests/test_campaign.py": {
+      "sha256": "45eec90c2c6bfe0c1dff924f4f222e00c175144f025ba8bd30ece25080e7420c",
+      "bytes": 2200
+    },
+    "tests/test_checks_statistics.py": {
+      "sha256": "c129d13b376bc3b4dc61a15a2f38a16a64eaf2b2ae6011bff63383ac0dac1b19",
+      "bytes": 2409
+    },
+    "tests/test_engine_integration.py": {
+      "sha256": "6ca5f7abe7e29c94b08dffc907787da79af1eeea8528d933177a750deb00ec9f",
+      "bytes": 20591
+    },
+    "tests/test_experiment_ledger.py": {
+      "sha256": "23b75517d9fdc703adf4ee7c3e3d1ffcaa872a61b0918428d684f25477301559",
+      "bytes": 3012
+    },
+    "tests/test_expression_catalog.py": {
+      "sha256": "f7be158b9eb29d7341050bad5863f9d6f47f7740596c19a3a9716ba9f029c571",
+      "bytes": 6675
+    },
+    "tests/test_learning.py": {
+      "sha256": "bdcf8605face159dbe9ae833e707241a931dfd171036c901ee4c8c0aee6fbd65",
+      "bytes": 5287
+    },
+    "tests/test_loader_and_selector.py": {
+      "sha256": "a7394e58de549c05c84c18bfcdac3e71204286387a1ad15019aa88e0ff1d31da",
+      "bytes": 2285
+    },
+    "tests/test_offline_migration.py": {
+      "sha256": "fe5307523d06bf540c0e65b9717947beda1f789cbff476139ed9ff954ad7212a",
+      "bytes": 3229
+    },
+    "tests/test_offline_review.py": {
+      "sha256": "1497483457c9818515a375d0e3888c9ed6af0046a127f1f5959266c224fe07de",
+      "bytes": 1162
+    },
+    "tests/test_policy_epochs.py": {
+      "sha256": "02e0646eb05895e94bed992a685227bd6e3bce0279bc7b2e90b4ce23f3d65e95",
+      "bytes": 4129
+    },
+    "tests/test_pyramid.py": {
+      "sha256": "091f6120b28209b3474e761dbd8aec05837614c88c2efbf34558d9310ad6fab1",
+      "bytes": 376
+    },
+    "tests/test_quant_basket_search.py": {
+      "sha256": "e64b7dd6ae61bcb8c3c9e16f7568da6551f695ff5bbdd243bb2694e3f8cbf325",
+      "bytes": 7555
+    },
+    "tests/test_quant_inference_protocol.py": {
+      "sha256": "c1d79daaf9b36e1dae42ca32d31ebbae4e625d730fb6e805471b60bfb7d217c7",
+      "bytes": 7994
+    },
+    "tests/test_quant_review.py": {
+      "sha256": "d3f3f47614f1a58136e8891c249c61cbc80bdfe78343343392f41fc0484c8571",
+      "bytes": 1699
+    },
+    "tests/test_queue.py": {
+      "sha256": "49392f267a49234dc6516af5a8ecf29a8eef96b4950a8cb2739dfbfe04861a98",
+      "bytes": 518
+    },
+    "tests/test_safe_network_writes.py": {
+      "sha256": "75ceaaaf76143d8feb69b5b10075d2db2b513a05d5f91e5ff85fb478458c273b",
+      "bytes": 1834
+    },
+    "tools/legacy/analyze_run.py": {
+      "sha256": "c948dcbd5117b5db7108871736db8892dc73ddde7c0d9e4a93c04c177bd345f7",
+      "bytes": 16785
+    },
+    "tools/legacy/backfill_pnl.py": {
+      "sha256": "41f4ff788934d4443a81adb501ec18b52ec3d809d520d337f3ab6d6ed0455163",
+      "bytes": 5370
+    },
+    "tools/legacy/code.py": {
+      "sha256": "9fe073c39c59948f42094ac5ce3e51c81286773dd8b619be29332e6a9505db44",
+      "bytes": 3993
+    },
+    "tools/legacy/evaluate_prescreener.py": {
+      "sha256": "eea1ef577bd75cf2d01216d6043b1afafb17d69bb5453135e1fa775b6dcf9d93",
+      "bytes": 2796
+    },
+    "tools/legacy/field_harvester.py": {
+      "sha256": "87dbc73360d51814e6d09482e2b169b28ab967796e6ceb5e6b622e7a094319c4",
+      "bytes": 25519
+    },
+    "tools/legacy/hyper_tuner.py": {
+      "sha256": "6764749ee51ce7241f453649b592f4f8edf9df4287ca13e289c3564d906bcc1c",
+      "bytes": 3080
+    },
+    "tools/legacy/inject_seeds.py": {
+      "sha256": "b3ec7e37c521b97fbc08c62fd6a52597dfdd2e35630942d5f51f2a31eb8fd3f1",
+      "bytes": 8606
+    },
+    "tools/legacy/probe_wq.py": {
+      "sha256": "79fca0ce9e15c83bc11e7c0618936cc44280a7716553262b6c33f8a51a8d64c1",
+      "bytes": 4466
+    },
+    "tools/legacy/review_winners.py": {
+      "sha256": "46aa54aac2596811664b7dedb25236f60c42092813a2b85c34eb1f986b1343eb",
+      "bytes": 1258
+    },
+    "tools/legacy/test_alpha.py": {
+      "sha256": "ca6087df7afe8ad2e7553a8e4532545da8e7d4e12eb47fcc643fcd84843a8578",
+      "bytes": 2410
+    }
+  }
+}

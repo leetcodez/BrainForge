@@ -1,0 +1,9 @@
+{
+  "iterations": 5000,
+  "validated_outputs": 10000,
+  "invalid_outputs": 0,
+  "changed_from_selected_parent": 5000,
+  "seed": 42,
+  "network_calls": 0,
+  "scope": "synthetic field metadata; structural validity, not alpha profitability"
+}
