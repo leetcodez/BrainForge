@@ -1,0 +1,9 @@
+{
+ "manifest_sha256": "5119cbc68f8a824324d5990bdd140f5ea778514e81e064e2fae0b673805c013c",
+ "meta_sha256": "64b2a9e6fbe82c22891af62ad975e6638eee4e5b7c220b843c2641de9fe15e2b",
+ "published_at": "2026-10-03T10:56:12.118358+00:00",
+ "schema_version": "forge2-warmstart-v1",
+ "source_db_sha256": "2918fe975b69d30fac22d659f5f530333b6ca26d0e2197c3525899000d4f454c",
+ "warmstart_artifact": "/home/utsav/brain-forge/evidence/evidence_aware_warmstart_v2.json",
+ "warmstart_file_sha256": "0a305e3e6b5f4d9180e9a5ea0680aa05da6a2532c6431750959ca5c3ecc68fcf"
+}

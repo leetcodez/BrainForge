@@ -1,6 +1,7 @@
 import ast
 import asyncio
 import copy
+import hashlib
 import json
 import logging
 import math
@@ -935,6 +936,12 @@ class AlphaFactory:
                 "epoch_id":os.getenv("FORGE2_EPOCH_ID"),
                 "basket_report":getattr(self,"basket_report",{}),
             }
+            if getattr(self, "warmstart_manifest", None) is not None:
+                data["warmstart_manifest"] = self.warmstart_manifest
+            if getattr(self, "warmstart_file_hash", None) is not None:
+                data["warmstart_file_hash"] = self.warmstart_file_hash
+            if getattr(self, "warmstart_provenance", None) is not None:
+                data["warmstart_provenance"] = self.warmstart_provenance
             if pending_offspring is not None:
                 # Still INSIDE this generation (not past it): resume must
                 # re-enter self.generation, not the next one.
@@ -970,6 +977,11 @@ class AlphaFactory:
             self._avoid_motifs=set(decision["avoid_motifs"])
             self.genetic.avoid_motifs=self._avoid_motifs.copy()
         self.basket_report=data.get("basket_report",{"reason":"legacy_checkpoint"})
+        if "warmstart_manifest" in data:
+            self.warmstart_manifest = data["warmstart_manifest"]
+            self.warmstart_file_hash = data.get("warmstart_file_hash") or hashlib.sha256(path.read_bytes()).hexdigest()
+        if "warmstart_provenance" in data:
+            self.warmstart_provenance = data["warmstart_provenance"]
         self._resume_population_snapshot=data.get("population_snapshot")
         if self._resume_population_snapshot is not None:
             for rec in self._resume_population_snapshot:

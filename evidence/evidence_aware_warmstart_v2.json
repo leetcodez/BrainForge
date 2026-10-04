@@ -1,0 +1,735 @@
+{
+ "generation": 0,
+ "population": [
+  [
+   "group_neutralize(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), INDUSTRY)",
+   "TOP3000",
+   0
+  ],
+  [
+   "group_neutralize(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(ninety_day_interpolated_implied_volatility, 60)), 180), -5), INDUSTRY)",
+   "TOP3000",
+   0
+  ],
+  [
+   "group_neutralize(trade_when(ts_zscore(add(fivehundred_day_close_to_close_vol, one_thousand_day_ex_announcement_intraday_volatility_2), 60) > rank(rank(group_neutralize(zscore(ts_rank(ninety_day_interpolated_implied_volatility, 60)), MARKET))), ts_zscore(winsorize(ts_rank(ninety_day_interpolated_implied_volatility, 60)), 180), -ts_rank(add(subtract(ninety_day_interpolated_implied_volatility, month_two_straddle_strategy_price), vec_avg(ern4_impliedee)), 60)), INDUSTRY)",
+   "TOP3000",
+   0
+  ],
+  [
+   "group_neutralize(trade_when(ts_zscore(put_call_slope_28d, 60) > 0, trade_when(ts_zscore(add(fivehundred_day_close_to_close_vol, sixth_historical_straddle_price_percent), 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), INDUSTRY)",
+   "TOP3000",
+   0
+  ],
+  [
+   "group_neutralize(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), group_neutralize(trade_when(ts_zscore(put_call_slope_28d, 120) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > normalize(zscore(group_neutralize(rank(ts_rank(add(add(add(eleventh_event_option_effect_2, onehundredtwenty_day_close_to_close_vol), ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), INDUSTRY), -5), INDUSTRY)",
+   "TOP3000",
+   0
+  ],
+  [
+   "group_neutralize(trade_when(ts_zscore(vec_avg(ern4_5dorhvxern), 180) > 0, trade_when(ts_zscore(put_call_slope_28d, 120) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), -1), INDUSTRY)",
+   "TOP3000",
+   0
+  ],
+  [
+   "group_neutralize(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -rank(tenth_historical_straddle_price_percent)), INDUSTRY)",
+   "TOP3000",
+   20
+  ],
+  [
+   "group_neutralize(trade_when(ts_zscore(add(add(one_thousand_day_ex_announcement_intraday_volatility_2, weeks_until_next_announcement), fivehundred_day_close_to_close_vol), 60) > rank(rank(group_neutralize(zscore(ts_rank(ninety_day_interpolated_implied_volatility, 60)), MARKET))), ts_zscore(winsorize(ts_rank(ninety_day_interpolated_implied_volatility, 60)), 180), -ts_rank(add(ninety_day_interpolated_implied_volatility, vec_avg(ern4_impliedee)), 60)), INDUSTRY)",
+   "TOP3000",
+   0
+  ],
+  [
+   "group_neutralize(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > 0, ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, sixth_event_option_effect), 60)), 180), -ts_zscore(one_thousand_day_close_to_close_volatility, 180)), INDUSTRY)",
+   "TOP3000",
+   0
+  ],
+  [
+   "group_neutralize(trade_when(ts_zscore(put_call_slope_28d, 60) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, subtract(ninety_day_interpolated_implied_volatility, twenty_eight_day_ex_announcement_implied_volatility)), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), INDUSTRY)",
+   "TOP3000",
+   0
+  ],
+  [
+   "group_neutralize(group_rank(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 60) > 0, ts_zscore(winsorize(ts_rank(ninety_day_interpolated_implied_volatility, 60)), 180), -1), INDUSTRY), SUBINDUSTRY)",
+   "TOP3000",
+   0
+  ],
+  [
+   "group_neutralize(trade_when(ts_zscore(subtract(forecasted_put_call_slope, vec_avg(ern4_fcsterneffct)), 120) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > normalize(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), INDUSTRY)",
+   "TOP3000",
+   0
+  ],
+  [
+   "group_neutralize(trade_when(ts_zscore(add(put_call_slope_28d, straddle_price_pct_move_9), 60) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(ninety_day_interpolated_implied_volatility, subtract(eleventh_event_option_effect_2, vec_avg(ern4_120dclshvxern))), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -5), INDUSTRY)",
+   "TOP3000",
+   0
+  ],
+  [
+   "group_neutralize(trade_when(ts_zscore(onethousand_day_intraday_vol, 252) > 0, trade_when(ts_zscore(put_call_slope_28d, 60) > 0, trade_when(ts_zscore(add(fivehundred_day_close_to_close_vol, vec_avg(ern4_500dclshv)), 120) > zscore(zscore(group_neutralize(rank(ts_rank(subtract(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), -1), INDUSTRY)",
+   "TOP3000",
+   0
+  ],
+  [
+   "group_neutralize(trade_when(ts_zscore(put_call_slope_28d, 120) > 0, trade_when(ts_zscore(subtract(fivehundred_day_close_to_close_vol, vec_avg(ern4_fairvol90d)), 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(ninety_day_interpolated_implied_volatility, subtract(eleventh_event_option_effect_2, vec_avg(ern4_120dclshvxern))), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -5), INDUSTRY)",
+   "TOP3000",
+   0
+  ],
+  [
+   "group_neutralize(trade_when(ts_zscore(subtract(add(five_day_close_vol_ex_announcement, put_call_slope_28d), vec_avg(ern4_fcsterneffct)), 120) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > normalize(zscore(group_neutralize(rank(ts_rank(add(add(implied_announcement_effect, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), INDUSTRY)",
+   "TOP3000",
+   0
+  ],
+  [
+   "group_neutralize(rank(group_neutralize(rank(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_ernstrapct5)), 60)), MARKET)), SUBINDUSTRY)",
+   "TOP3000",
+   0
+  ],
+  [
+   "group_neutralize(trade_when(ts_zscore(put_call_slope_28d, 60) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), INDUSTRY)",
+   "TOP3000",
+   0
+  ],
+  [
+   "group_neutralize(zscore(group_neutralize(rank(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_ernstrapct5)), 60)), MARKET)), SUBINDUSTRY)",
+   "TOP3000",
+   0
+  ],
+  [
+   "group_neutralize(trade_when(ts_zscore(sixth_event_option_effect, 180) > 0, quantile(group_neutralize(rank(ts_rank(group_neutralize(ts_delta(-ts_zscore(second_month_highest_strike_price, 10), 10), SECTOR), 60)), MARKET)), -1), SUBINDUSTRY)",
+   "TOP3000",
+   0
+  ]
+ ],
+ "schema_version": "forge2-warmstart-v1",
+ "submission_count": 0,
+ "warmstart_manifest": {
+  "basket_report": {
+   "common_intervals": 1234,
+   "dataset_counts": {
+    "earnings4": 16
+   },
+   "reason": "measured_core_plus_explicit_exploration",
+   "rejection_summary": {
+    "absolute_return_redundancy": 139
+   },
+   "shrinkage": 0.01083943750081921
+  },
+  "declared_reserve": 4,
+  "explore_fraction": 0.2,
+  "interval_diagnostics": {
+   "adjacent_differences": 1235,
+   "end_date": "2023-12-29",
+   "excluded_gap_count": 1,
+   "excluded_gaps": [
+    {
+     "calendar_days": 33,
+     "end_date": "2020-04-01",
+     "reason": "calendar_days (33) > max_gap_days (4)",
+     "start_date": "2020-02-28"
+    }
+   ],
+   "matched_intervals": 1234,
+   "raw_points": 1236,
+   "start_date": "2019-01-02",
+   "unit": "matched cumulative-PnL intervals; not guaranteed single trading days"
+  },
+  "manifest_sha256": "5119cbc68f8a824324d5990bdd140f5ea778514e81e064e2fae0b673805c013c",
+  "measured_core": [
+   {
+    "alpha_id": "0m8RdJbv",
+    "common_intervals": 1234,
+    "datasets": [
+     "earnings4"
+    ],
+    "decay": 0,
+    "evaluation_identity": "3d176ce993e6ecf21d24e44155b06ebcc9b7fa8b2b66083fb08475a5183016b5",
+    "expression": "group_neutralize(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), INDUSTRY)",
+    "fitness": 0.3523108347370643,
+    "has_pnl": true,
+    "legacy_is_qualified": 1,
+    "pnl_intervals": 1234,
+    "qualification_evidence": {
+     "evidence_verified": false,
+     "failed_checks": [],
+     "pending_checks": [],
+     "qualification_status": "CHECKS_UNVERIFIABLE",
+     "reason": "missing_checks_payload",
+     "warnings": []
+    },
+    "raw_subspace_fraction": 1.0,
+    "residual_fraction": 1.0,
+    "sharpe": 2.96,
+    "tier": "measured_core",
+    "turnover": 0.3912,
+    "universe": "TOP3000"
+   },
+   {
+    "alpha_id": "RRr76jw1",
+    "common_intervals": 1234,
+    "datasets": [
+     "earnings4"
+    ],
+    "decay": 0,
+    "evaluation_identity": "40d5484391925878a015cc4ec5211af97aa822f60656a113df5e8c56ed78a96c",
+    "expression": "group_neutralize(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(ninety_day_interpolated_implied_volatility, 60)), 180), -5), INDUSTRY)",
+    "fitness": 0.24530908560126322,
+    "has_pnl": true,
+    "legacy_is_qualified": 1,
+    "pnl_intervals": 1234,
+    "qualification_evidence": {
+     "evidence_verified": false,
+     "failed_checks": [],
+     "pending_checks": [],
+     "qualification_status": "CHECKS_UNVERIFIABLE",
+     "reason": "missing_checks_payload",
+     "warnings": []
+    },
+    "raw_subspace_fraction": 0.4786147206656383,
+    "residual_fraction": 0.47867599117862536,
+    "sharpe": 2.58,
+    "tier": "measured_core",
+    "turnover": 0.3826,
+    "universe": "TOP3000"
+   },
+   {
+    "alpha_id": "1YgxNRQJ",
+    "common_intervals": 1234,
+    "datasets": [
+     "earnings4"
+    ],
+    "decay": 0,
+    "evaluation_identity": "919fbe027afb87e21b59cb513ad4d75aeb8830228b20dedd761a97c436158782",
+    "expression": "group_neutralize(trade_when(ts_zscore(add(fivehundred_day_close_to_close_vol, one_thousand_day_ex_announcement_intraday_volatility_2), 60) > rank(rank(group_neutralize(zscore(ts_rank(ninety_day_interpolated_implied_volatility, 60)), MARKET))), ts_zscore(winsorize(ts_rank(ninety_day_interpolated_implied_volatility, 60)), 180), -ts_rank(add(subtract(ninety_day_interpolated_implied_volatility, month_two_straddle_strategy_price), vec_avg(ern4_impliedee)), 60)), INDUSTRY)",
+    "fitness": 0.1925164939748086,
+    "has_pnl": true,
+    "legacy_is_qualified": 1,
+    "pnl_intervals": 1234,
+    "qualification_evidence": {
+     "evidence_verified": false,
+     "failed_checks": [],
+     "pending_checks": [],
+     "qualification_status": "CHECKS_UNVERIFIABLE",
+     "reason": "missing_checks_payload",
+     "warnings": []
+    },
+    "raw_subspace_fraction": 0.3855810541338068,
+    "residual_fraction": 0.385699344048157,
+    "sharpe": 2.25,
+    "tier": "measured_core",
+    "turnover": 0.3159,
+    "universe": "TOP3000"
+   },
+   {
+    "alpha_id": "RRre169e",
+    "common_intervals": 1234,
+    "datasets": [
+     "earnings4"
+    ],
+    "decay": 0,
+    "evaluation_identity": "1a2ed3df4d83e4dc7584af10e00041c92c29662c4da0041db6382a98bbf2b370",
+    "expression": "group_neutralize(trade_when(ts_zscore(put_call_slope_28d, 60) > 0, trade_when(ts_zscore(add(fivehundred_day_close_to_close_vol, sixth_historical_straddle_price_percent), 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), INDUSTRY)",
+    "fitness": 0.18614723554423382,
+    "has_pnl": true,
+    "legacy_is_qualified": 1,
+    "pnl_intervals": 1234,
+    "qualification_evidence": {
+     "evidence_verified": false,
+     "failed_checks": [],
+     "pending_checks": [],
+     "qualification_status": "CHECKS_UNVERIFIABLE",
+     "reason": "missing_checks_payload",
+     "warnings": []
+    },
+    "raw_subspace_fraction": 0.41774039235167915,
+    "residual_fraction": 0.4178767349681851,
+    "sharpe": 2.87,
+    "tier": "measured_core",
+    "turnover": 0.2381,
+    "universe": "TOP3000"
+   },
+   {
+    "alpha_id": "MPxee7p6",
+    "common_intervals": 1234,
+    "datasets": [
+     "earnings4"
+    ],
+    "decay": 0,
+    "evaluation_identity": "b36855911827f1839183ae0bf94883d8b08864f697a8326c4ba582aaf3215537",
+    "expression": "group_neutralize(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), group_neutralize(trade_when(ts_zscore(put_call_slope_28d, 120) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > normalize(zscore(group_neutralize(rank(ts_rank(add(add(add(eleventh_event_option_effect_2, onehundredtwenty_day_close_to_close_vol), ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), INDUSTRY), -5), INDUSTRY)",
+    "fitness": 0.18497111511506947,
+    "has_pnl": true,
+    "legacy_is_qualified": 1,
+    "pnl_intervals": 1234,
+    "qualification_evidence": {
+     "evidence_verified": false,
+     "failed_checks": [],
+     "pending_checks": [],
+     "qualification_status": "CHECKS_UNVERIFIABLE",
+     "reason": "missing_checks_payload",
+     "warnings": []
+    },
+    "raw_subspace_fraction": 0.31284404763785983,
+    "residual_fraction": 0.31289396158923233,
+    "sharpe": 3.31,
+    "tier": "measured_core",
+    "turnover": 0.2165,
+    "universe": "TOP3000"
+   },
+   {
+    "alpha_id": "9qRlRqVx",
+    "common_intervals": 1234,
+    "datasets": [
+     "earnings4"
+    ],
+    "decay": 0,
+    "evaluation_identity": "6f031038e93d8a7a94bf3c0943f7c31cde46e3b380b4e5572ae78b942ec2ebda",
+    "expression": "group_neutralize(trade_when(ts_zscore(vec_avg(ern4_5dorhvxern), 180) > 0, trade_when(ts_zscore(put_call_slope_28d, 120) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), -1), INDUSTRY)",
+    "fitness": 0.13679969651739213,
+    "has_pnl": true,
+    "legacy_is_qualified": 1,
+    "pnl_intervals": 1234,
+    "qualification_evidence": {
+     "evidence_verified": false,
+     "failed_checks": [],
+     "pending_checks": [],
+     "qualification_status": "CHECKS_UNVERIFIABLE",
+     "reason": "missing_checks_payload",
+     "warnings": []
+    },
+    "raw_subspace_fraction": 0.3277642922421769,
+    "residual_fraction": 0.32781816399242414,
+    "sharpe": 2.9,
+    "tier": "measured_core",
+    "turnover": 0.1316,
+    "universe": "TOP3000"
+   },
+   {
+    "alpha_id": "gJ3rXM1O",
+    "common_intervals": 1234,
+    "datasets": [
+     "earnings4"
+    ],
+    "decay": 20,
+    "evaluation_identity": "c51e775b201f6e552f4545c326975b3de149ceca184eaa2261baa270a656cd27",
+    "expression": "group_neutralize(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -rank(tenth_historical_straddle_price_percent)), INDUSTRY)",
+    "fitness": 0.13356627978927915,
+    "has_pnl": true,
+    "legacy_is_qualified": 1,
+    "pnl_intervals": 1234,
+    "qualification_evidence": {
+     "evidence_verified": false,
+     "failed_checks": [],
+     "pending_checks": [],
+     "qualification_status": "CHECKS_UNVERIFIABLE",
+     "reason": "missing_checks_payload",
+     "warnings": []
+    },
+    "raw_subspace_fraction": 0.27514725329633105,
+    "residual_fraction": 0.27517712867509814,
+    "sharpe": 2.86,
+    "tier": "measured_core",
+    "turnover": 0.0886,
+    "universe": "TOP3000"
+   },
+   {
+    "alpha_id": "gJ3QexdQ",
+    "common_intervals": 1234,
+    "datasets": [
+     "earnings4"
+    ],
+    "decay": 0,
+    "evaluation_identity": "fd571f876c5dd59837b70ff84bdc2529ce4c0d43502d2c6e1decf4554701a50f",
+    "expression": "group_neutralize(trade_when(ts_zscore(add(add(one_thousand_day_ex_announcement_intraday_volatility_2, weeks_until_next_announcement), fivehundred_day_close_to_close_vol), 60) > rank(rank(group_neutralize(zscore(ts_rank(ninety_day_interpolated_implied_volatility, 60)), MARKET))), ts_zscore(winsorize(ts_rank(ninety_day_interpolated_implied_volatility, 60)), 180), -ts_rank(add(ninety_day_interpolated_implied_volatility, vec_avg(ern4_impliedee)), 60)), INDUSTRY)",
+    "fitness": 0.11929802150456736,
+    "has_pnl": true,
+    "legacy_is_qualified": 1,
+    "pnl_intervals": 1234,
+    "qualification_evidence": {
+     "evidence_verified": false,
+     "failed_checks": [],
+     "pending_checks": [],
+     "qualification_status": "CHECKS_UNVERIFIABLE",
+     "reason": "missing_checks_payload",
+     "warnings": []
+    },
+    "raw_subspace_fraction": 0.5152420596487522,
+    "residual_fraction": 0.5153198161781471,
+    "sharpe": 2.12,
+    "tier": "measured_core",
+    "turnover": 0.2853,
+    "universe": "TOP3000"
+   },
+   {
+    "alpha_id": "Vk8GE395",
+    "common_intervals": 1234,
+    "datasets": [
+     "earnings4"
+    ],
+    "decay": 0,
+    "evaluation_identity": "91946aa2d7f7853628affe44e7f1e519404679a4ade9dc8559cc703ec50643bc",
+    "expression": "group_neutralize(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > 0, ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, sixth_event_option_effect), 60)), 180), -ts_zscore(one_thousand_day_close_to_close_volatility, 180)), INDUSTRY)",
+    "fitness": 0.11718791846247163,
+    "has_pnl": true,
+    "legacy_is_qualified": 1,
+    "pnl_intervals": 1234,
+    "qualification_evidence": {
+     "evidence_verified": false,
+     "failed_checks": [],
+     "pending_checks": [],
+     "qualification_status": "CHECKS_UNVERIFIABLE",
+     "reason": "missing_checks_payload",
+     "warnings": []
+    },
+    "raw_subspace_fraction": 0.40483599515769036,
+    "residual_fraction": 0.4049516291459442,
+    "sharpe": 2.22,
+    "tier": "measured_core",
+    "turnover": 0.4602,
+    "universe": "TOP3000"
+   },
+   {
+    "alpha_id": "N1OaVl5L",
+    "common_intervals": 1234,
+    "datasets": [
+     "earnings4"
+    ],
+    "decay": 0,
+    "evaluation_identity": "925ecb9cf42bc3868239a99471514ed3027632898cd2024570d5527182186e0d",
+    "expression": "group_neutralize(trade_when(ts_zscore(put_call_slope_28d, 60) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, subtract(ninety_day_interpolated_implied_volatility, twenty_eight_day_ex_announcement_implied_volatility)), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), INDUSTRY)",
+    "fitness": 0.10948685233010316,
+    "has_pnl": true,
+    "legacy_is_qualified": 1,
+    "pnl_intervals": 1234,
+    "qualification_evidence": {
+     "evidence_verified": false,
+     "failed_checks": [],
+     "pending_checks": [],
+     "qualification_status": "CHECKS_UNVERIFIABLE",
+     "reason": "missing_checks_payload",
+     "warnings": []
+    },
+    "raw_subspace_fraction": 0.3329743895772713,
+    "residual_fraction": 0.3330960272025931,
+    "sharpe": 2.65,
+    "tier": "measured_core",
+    "turnover": 0.2341,
+    "universe": "TOP3000"
+   },
+   {
+    "alpha_id": "QPQ70gmQ",
+    "common_intervals": 1234,
+    "datasets": [
+     "earnings4"
+    ],
+    "decay": 0,
+    "evaluation_identity": "3e17d7ad270a16b0a79d241a1b7ced286ff0f10cdaa6c9f24e10c682829d9094",
+    "expression": "group_neutralize(group_rank(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 60) > 0, ts_zscore(winsorize(ts_rank(ninety_day_interpolated_implied_volatility, 60)), 180), -1), INDUSTRY), SUBINDUSTRY)",
+    "fitness": 0.10642438166680267,
+    "has_pnl": true,
+    "legacy_is_qualified": 1,
+    "pnl_intervals": 1234,
+    "qualification_evidence": {
+     "evidence_verified": false,
+     "failed_checks": [],
+     "pending_checks": [],
+     "qualification_status": "CHECKS_UNVERIFIABLE",
+     "reason": "missing_checks_payload",
+     "warnings": []
+    },
+    "raw_subspace_fraction": 0.4003613576098679,
+    "residual_fraction": 0.40041894251601684,
+    "sharpe": 2.54,
+    "tier": "measured_core",
+    "turnover": 0.3523,
+    "universe": "TOP3000"
+   },
+   {
+    "alpha_id": "xAn2wmOn",
+    "common_intervals": 1234,
+    "datasets": [
+     "earnings4"
+    ],
+    "decay": 0,
+    "evaluation_identity": "76a89cce757d35fb59e4477911d77a4fe2a03f0534c2ae1e234101e8c9b97995",
+    "expression": "group_neutralize(trade_when(ts_zscore(subtract(forecasted_put_call_slope, vec_avg(ern4_fcsterneffct)), 120) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > normalize(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), INDUSTRY)",
+    "fitness": 0.0828050944462094,
+    "has_pnl": true,
+    "legacy_is_qualified": 1,
+    "pnl_intervals": 1234,
+    "qualification_evidence": {
+     "evidence_verified": false,
+     "failed_checks": [],
+     "pending_checks": [],
+     "qualification_status": "CHECKS_UNVERIFIABLE",
+     "reason": "missing_checks_payload",
+     "warnings": []
+    },
+    "raw_subspace_fraction": 0.3721675080261381,
+    "residual_fraction": 0.3722061380682834,
+    "sharpe": 2.96,
+    "tier": "measured_core",
+    "turnover": 0.2076,
+    "universe": "TOP3000"
+   },
+   {
+    "alpha_id": "d5Qa0Ojv",
+    "common_intervals": 1234,
+    "datasets": [
+     "earnings4"
+    ],
+    "decay": 0,
+    "evaluation_identity": "e4f58c581c26701626c6276dcb2ea77fbc5c706342d96cf9fb413f4931e76fd7",
+    "expression": "group_neutralize(trade_when(ts_zscore(add(put_call_slope_28d, straddle_price_pct_move_9), 60) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(ninety_day_interpolated_implied_volatility, subtract(eleventh_event_option_effect_2, vec_avg(ern4_120dclshvxern))), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -5), INDUSTRY)",
+    "fitness": 0.07742824306939201,
+    "has_pnl": true,
+    "legacy_is_qualified": 1,
+    "pnl_intervals": 1234,
+    "qualification_evidence": {
+     "evidence_verified": false,
+     "failed_checks": [],
+     "pending_checks": [],
+     "qualification_status": "CHECKS_UNVERIFIABLE",
+     "reason": "missing_checks_payload",
+     "warnings": []
+    },
+    "raw_subspace_fraction": 0.23668126817065757,
+    "residual_fraction": 0.23669835517560656,
+    "sharpe": 2.69,
+    "tier": "measured_core",
+    "turnover": 0.2286,
+    "universe": "TOP3000"
+   },
+   {
+    "alpha_id": "GroQLOKP",
+    "common_intervals": 1234,
+    "datasets": [
+     "earnings4"
+    ],
+    "decay": 0,
+    "evaluation_identity": "348892456d885c148db66412718445d482519f58b73b10d727c6c4266e057b9c",
+    "expression": "group_neutralize(trade_when(ts_zscore(onethousand_day_intraday_vol, 252) > 0, trade_when(ts_zscore(put_call_slope_28d, 60) > 0, trade_when(ts_zscore(add(fivehundred_day_close_to_close_vol, vec_avg(ern4_500dclshv)), 120) > zscore(zscore(group_neutralize(rank(ts_rank(subtract(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), -1), INDUSTRY)",
+    "fitness": 0.07565689365656,
+    "has_pnl": true,
+    "legacy_is_qualified": 1,
+    "pnl_intervals": 1234,
+    "qualification_evidence": {
+     "evidence_verified": false,
+     "failed_checks": [],
+     "pending_checks": [],
+     "qualification_status": "CHECKS_UNVERIFIABLE",
+     "reason": "missing_checks_payload",
+     "warnings": []
+    },
+    "raw_subspace_fraction": 0.2772174169180205,
+    "residual_fraction": 0.2773067486230032,
+    "sharpe": 2.75,
+    "tier": "measured_core",
+    "turnover": 0.1947,
+    "universe": "TOP3000"
+   },
+   {
+    "alpha_id": "3qAGpdoO",
+    "common_intervals": 1234,
+    "datasets": [
+     "earnings4"
+    ],
+    "decay": 0,
+    "evaluation_identity": "b2fa8cc3e36ad25b85e81dfef7e255597600996d50cd417284f6114fcc6fa54b",
+    "expression": "group_neutralize(trade_when(ts_zscore(put_call_slope_28d, 120) > 0, trade_when(ts_zscore(subtract(fivehundred_day_close_to_close_vol, vec_avg(ern4_fairvol90d)), 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(ninety_day_interpolated_implied_volatility, subtract(eleventh_event_option_effect_2, vec_avg(ern4_120dclshvxern))), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -5), INDUSTRY)",
+    "fitness": 0.07238171793684413,
+    "has_pnl": true,
+    "legacy_is_qualified": 1,
+    "pnl_intervals": 1234,
+    "qualification_evidence": {
+     "evidence_verified": false,
+     "failed_checks": [],
+     "pending_checks": [],
+     "qualification_status": "CHECKS_UNVERIFIABLE",
+     "reason": "missing_checks_payload",
+     "warnings": []
+    },
+    "raw_subspace_fraction": 0.4972870811455519,
+    "residual_fraction": 0.49744311114151846,
+    "sharpe": 2.85,
+    "tier": "measured_core",
+    "turnover": 0.2457,
+    "universe": "TOP3000"
+   },
+   {
+    "alpha_id": "bl9zmmlm",
+    "common_intervals": 1234,
+    "datasets": [
+     "earnings4"
+    ],
+    "decay": 0,
+    "evaluation_identity": "c3b396fca130ab6c6855958a29c384a5f90733fe3aa86f1f6390cad80546b3e6",
+    "expression": "group_neutralize(trade_when(ts_zscore(subtract(add(five_day_close_vol_ex_announcement, put_call_slope_28d), vec_avg(ern4_fcsterneffct)), 120) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > normalize(zscore(group_neutralize(rank(ts_rank(add(add(implied_announcement_effect, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), INDUSTRY)",
+    "fitness": 0.058795643260449865,
+    "has_pnl": true,
+    "legacy_is_qualified": 1,
+    "pnl_intervals": 1234,
+    "qualification_evidence": {
+     "evidence_verified": false,
+     "failed_checks": [],
+     "pending_checks": [],
+     "qualification_status": "CHECKS_UNVERIFIABLE",
+     "reason": "missing_checks_payload",
+     "warnings": []
+    },
+    "raw_subspace_fraction": 0.2598713557999156,
+    "residual_fraction": 0.2600380020333194,
+    "sharpe": 2.86,
+    "tier": "measured_core",
+    "turnover": 0.2143,
+    "universe": "TOP3000"
+   }
+  ],
+  "measured_core_count": 16,
+  "provenance": {
+   "catalog_hash": "2b84f948b5098bd0ff6a53841c7b32dab86626099525a670ace38f9d2aeb142b",
+   "epoch_id": null,
+   "meta_path": "/home/utsav/brain-forge/migrated_runs/earnings4_run2/.epochs/c8336ac56f924355bf715f66b8e0157c/forge2_field_meta.json",
+   "meta_sha256": "64b2a9e6fbe82c22891af62ad975e6638eee4e5b7c220b843c2641de9fe15e2b",
+   "network_calls": 0,
+   "operators_hash": "5f72beb01d90fe8ba10ea3b1c68438b06e021fc9e48bfc5a58e4f70b154fef47",
+   "qualification_caveat": "All candidates retain parsed evidence status. Missing or historical checks are not platform certification.",
+   "regime": {
+    "delay": 1,
+    "region": "USA_ASSUMED",
+    "universe": "TOP3000"
+   },
+   "regime_caveat": "Region USA and delay 1 are migration assumptions from legacy config defaults; unconfirmed in source simulation logs.",
+   "source_db_path": "/home/utsav/brain-forge/backups/pre_v2_baseline/brain_memory.earnings4_run2.db",
+   "source_db_sha256": "2918fe975b69d30fac22d659f5f530333b6ca26d0e2197c3525899000d4f454c"
+  },
+  "selection_controls": {
+   "explore_fraction": 0.2,
+   "max_abs_correlation": 0.8,
+   "max_dataset_fraction": 1.0,
+   "min_overlap": 60,
+   "min_residual_fraction": 0.1,
+   "ridge": 1e-06,
+   "size": 20
+  },
+  "target_size": 20,
+  "total_warmstart_count": 20,
+  "underfill_count": 0,
+  "unverified_exploration": [
+   {
+    "alpha_id": "bl9qmWaZ",
+    "datasets": [
+     "earnings4"
+    ],
+    "decay": 0,
+    "diversity_verified": false,
+    "evaluation_identity": "14750d11afd4c42e0d07ce305c268a2f6a1d4985e6257aa7e22ed8f06360656b",
+    "exploration_reason": "Admitted under declared exploration reserve quota; economic novelty and PnL diversity unverified",
+    "expression": "group_neutralize(rank(group_neutralize(rank(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_ernstrapct5)), 60)), MARKET)), SUBINDUSTRY)",
+    "fitness": 0.4038553313989878,
+    "has_pnl": false,
+    "legacy_is_qualified": 0,
+    "pnl_verified": false,
+    "qualification_evidence": {
+     "evidence_verified": false,
+     "failed_checks": [],
+     "pending_checks": [],
+     "qualification_status": "CHECKS_UNVERIFIABLE",
+     "reason": "missing_checks_payload",
+     "warnings": []
+    },
+    "sharpe": 2.13,
+    "signal_novelty_status": "unknown_unmeasured",
+    "tier": "unverified_exploration",
+    "turnover": 0.6515,
+    "universe": "TOP3000"
+   },
+   {
+    "alpha_id": "2rKOW2X8",
+    "datasets": [
+     "earnings4"
+    ],
+    "decay": 0,
+    "diversity_verified": false,
+    "evaluation_identity": "c1e716785eea099ebf6f96b786623895226e3110ce6ebae00659e78bec8600f9",
+    "exploration_reason": "Admitted under declared exploration reserve quota; economic novelty and PnL diversity unverified",
+    "expression": "group_neutralize(trade_when(ts_zscore(put_call_slope_28d, 60) > 0, trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), -1), INDUSTRY)",
+    "fitness": 0.34639480499317915,
+    "has_pnl": true,
+    "legacy_is_qualified": 1,
+    "pnl_verified": false,
+    "qualification_evidence": {
+     "evidence_verified": false,
+     "failed_checks": [],
+     "pending_checks": [],
+     "qualification_status": "CHECKS_UNVERIFIABLE",
+     "reason": "missing_checks_payload",
+     "warnings": []
+    },
+    "sharpe": 2.98,
+    "signal_novelty_status": "unknown_unmeasured",
+    "tier": "unverified_exploration",
+    "turnover": 0.2361,
+    "universe": "TOP3000"
+   },
+   {
+    "alpha_id": "wpeEzOkQ",
+    "datasets": [
+     "earnings4"
+    ],
+    "decay": 0,
+    "diversity_verified": false,
+    "evaluation_identity": "01251f02f1f903b07fd995f329d6182ceeb492b351d0306051c4e6ca1e28adef",
+    "exploration_reason": "Admitted under declared exploration reserve quota; economic novelty and PnL diversity unverified",
+    "expression": "group_neutralize(zscore(group_neutralize(rank(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_ernstrapct5)), 60)), MARKET)), SUBINDUSTRY)",
+    "fitness": 0.3261394195603651,
+    "has_pnl": false,
+    "legacy_is_qualified": 0,
+    "pnl_verified": false,
+    "qualification_evidence": {
+     "evidence_verified": false,
+     "failed_checks": [],
+     "pending_checks": [],
+     "qualification_status": "CHECKS_UNVERIFIABLE",
+     "reason": "missing_checks_payload",
+     "warnings": []
+    },
+    "sharpe": 2.13,
+    "signal_novelty_status": "unknown_unmeasured",
+    "tier": "unverified_exploration",
+    "turnover": 0.6515,
+    "universe": "TOP3000"
+   },
+   {
+    "alpha_id": "kqKZ1mJg",
+    "datasets": [
+     "earnings4"
+    ],
+    "decay": 0,
+    "diversity_verified": false,
+    "evaluation_identity": "231de8e3843ab50ba05314a561774d0465d5a2e1fe33fc519cab1cb65eb06bd1",
+    "exploration_reason": "Admitted under declared exploration reserve quota; economic novelty and PnL diversity unverified",
+    "expression": "group_neutralize(trade_when(ts_zscore(sixth_event_option_effect, 180) > 0, quantile(group_neutralize(rank(ts_rank(group_neutralize(ts_delta(-ts_zscore(second_month_highest_strike_price, 10), 10), SECTOR), 60)), MARKET)), -1), SUBINDUSTRY)",
+    "fitness": 0.30451180938535594,
+    "has_pnl": false,
+    "legacy_is_qualified": 0,
+    "pnl_verified": false,
+    "qualification_evidence": {
+     "evidence_verified": false,
+     "failed_checks": [],
+     "pending_checks": [],
+     "qualification_status": "CHECKS_UNVERIFIABLE",
+     "reason": "missing_checks_payload",
+     "warnings": []
+    },
+    "sharpe": 1.95,
+    "signal_novelty_status": "unknown_unmeasured",
+    "tier": "unverified_exploration",
+    "turnover": 0.5373,
+    "universe": "TOP3000"
+   }
+  ],
+  "unverified_exploration_count": 4
+ }
+}

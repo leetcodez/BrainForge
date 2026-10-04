@@ -247,7 +247,22 @@ def run_pnl_ablation(db_path: str, meta_path: str, out_ablation: str, out_resolu
             'pnl_covered_count': len(pnl_covered),
             'unique_expressions_with_pnl': len(deduped_pnl),
             'exact_duplicates_removed': len(pnl_covered) - len(deduped_pnl),
-            'common_trading_days_T': corr_a.get('common_intervals_T', 1234),
+            'common_intervals_T': corr_a.get('common_intervals_T'),
+            'interval_accounting': {
+                'raw_date_points': 1236,
+                'date_span': '2019-01-02 to 2023-12-29',
+                'adjacent_differences': 1235,
+                'excluded_gaps': [
+                    {
+                        'start_date': '2020-02-28',
+                        'end_date': '2020-04-01',
+                        'calendar_days': 33,
+                        'reason': 'calendar_days (33) > max_gap_days (4)'
+                    }
+                ],
+                'final_matched_intervals': corr_a.get('common_intervals_T'),
+                'unit': 'matched cumulative-PnL intervals; not guaranteed single trading days'
+            },
         },
         'fixed_controls': {
             'size': 20,
