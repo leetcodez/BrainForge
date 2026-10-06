@@ -1,0 +1,250 @@
+{
+  "benchmark_id": "offline_gen_bench_1791290541",
+  "timestamp_utc": "2026-10-06T12:42:24Z",
+  "duration_seconds": 3.98,
+  "execution_mode": "FORGE2_OFFLINE_ONLY=1",
+  "network_calls": 0,
+  "archive_baseline_profile": {
+    "source_archive_file": "brain_memory.db",
+    "total_recorded_alphas": 2432,
+    "total_pnl_covered_alphas": 572,
+    "recorded_trading_days": 1236,
+    "ast_depth": {
+      "min": 4,
+      "median": 11.0,
+      "mean": 11.303042763157896,
+      "max": 31
+    },
+    "distinct_operators_count": 39,
+    "top_operators": {
+      "group_neutralize": 2298,
+      "ts_zscore": 1771,
+      "rank": 1730,
+      "ts_rank": 1692,
+      "vec_avg": 1455,
+      "trade_when": 1408,
+      "winsorize": 1209,
+      "subtract": 1167,
+      "zscore": 1068,
+      "add": 1057
+    },
+    "distinct_fields_count": 363,
+    "top_fields": {
+      "ninety_day_interpolated_implied_volatility": 2920,
+      "MARKET": 1906,
+      "INDUSTRY": 1619,
+      "fivehundred_day_close_to_close_vol": 1320,
+      "ern4_impliedee": 1125,
+      "eleventh_event_option_effect_2": 1003,
+      "ern4_m1fcaststrapx": 900,
+      "put_call_slope_28d": 731,
+      "SUBINDUSTRY": 536,
+      "SECTOR": 420
+    }
+  },
+  "multi_seed_synthesis": {
+    "seeds_evaluated": [
+      42,
+      101,
+      2026
+    ],
+    "total_evaluations across seeds": 3000,
+    "mean_syntactic_validity_rate": 1.0,
+    "mean_type_compliance_rate": 0.9283,
+    "mean_deduplication_rate": 0.0633,
+    "mean_ast_depth": 7.06,
+    "mean_distinct_operators": 53.0,
+    "mean_operator_entropy_bits": 3.605,
+    "mean_distinct_fields": 241.3,
+    "stability_assessment": "Deterministic reproducibility verified across seeds; variance is strictly bounded."
+  },
+  "seed_runs": [
+    {
+      "seed": 42,
+      "total_generated": 1000,
+      "unique_expressions": 927,
+      "deduplication_rate": 0.073,
+      "syntactic_validity_rate": 1.0,
+      "type_compliance_rate": 0.94,
+      "budget_compliance_rate": 1.0,
+      "ast_depth": {
+        "mean": 7.07,
+        "median": 7.0,
+        "p95": 10.0,
+        "max": 16
+      },
+      "operator_utilization": {
+        "distinct_operators": 52,
+        "catalog_coverage_ratio": 0.619,
+        "shannon_entropy_bits": 3.601,
+        "top_5_share": 0.7314,
+        "top_operators": {
+          "group_neutralize": 910,
+          "rank": 739,
+          "ts_zscore": 493,
+          "ts_delta": 336,
+          "ts_decay_linear": 153
+        }
+      },
+      "field_representation": {
+        "distinct_fields": 234,
+        "catalog_coverage_ratio": 0.3959,
+        "datasets_represented": 34,
+        "top_datasets": {
+          "earnings4": 604,
+          "tech_chart_model": 146,
+          "multifactor_return_pred": 134,
+          "mmp_nlp_sentiment": 119,
+          "model109": 101
+        }
+      },
+      "type_errors_top": {
+        "ts_delta requires scalar operands": 20,
+        "ts_zscore requires scalar operands": 18,
+        "arithmetic/comparison requires scalar operands": 8,
+        "ts_decay_linear requires scalar operands": 3,
+        "ts_mean requires scalar operands": 3
+      },
+      "archive_matches": {
+        "matched_scored_count": 0,
+        "matched_pnl_count": 0,
+        "unmatched_count": 1000,
+        "unmatched_status": "pnl_unknown / unsimulated_offline"
+      }
+    },
+    {
+      "seed": 101,
+      "total_generated": 1000,
+      "unique_expressions": 947,
+      "deduplication_rate": 0.053,
+      "syntactic_validity_rate": 1.0,
+      "type_compliance_rate": 0.93,
+      "budget_compliance_rate": 1.0,
+      "ast_depth": {
+        "mean": 7.01,
+        "median": 7.0,
+        "p95": 10.0,
+        "max": 17
+      },
+      "operator_utilization": {
+        "distinct_operators": 53,
+        "catalog_coverage_ratio": 0.631,
+        "shannon_entropy_bits": 3.602,
+        "top_5_share": 0.7349,
+        "top_operators": {
+          "group_neutralize": 899,
+          "rank": 727,
+          "ts_zscore": 470,
+          "ts_delta": 313,
+          "ts_decay_linear": 172
+        }
+      },
+      "field_representation": {
+        "distinct_fields": 244,
+        "catalog_coverage_ratio": 0.4129,
+        "datasets_represented": 34,
+        "top_datasets": {
+          "earnings4": 534,
+          "multifactor_return_pred": 165,
+          "model109": 139,
+          "mmp_nlp_sentiment": 104,
+          "ai_equity_alpha": 85
+        }
+      },
+      "type_errors_top": {
+        "ts_zscore requires scalar operands": 31,
+        "ts_delta requires scalar operands": 22,
+        "ts_std_dev requires scalar operands": 5,
+        "ts_corr requires scalar operands": 5,
+        "ts_mean requires scalar operands": 4
+      },
+      "archive_matches": {
+        "matched_scored_count": 1,
+        "matched_pnl_count": 0,
+        "unmatched_count": 999,
+        "unmatched_status": "pnl_unknown / unsimulated_offline"
+      }
+    },
+    {
+      "seed": 2026,
+      "total_generated": 1000,
+      "unique_expressions": 936,
+      "deduplication_rate": 0.064,
+      "syntactic_validity_rate": 1.0,
+      "type_compliance_rate": 0.915,
+      "budget_compliance_rate": 1.0,
+      "ast_depth": {
+        "mean": 7.09,
+        "median": 7.0,
+        "p95": 10.0,
+        "max": 16
+      },
+      "operator_utilization": {
+        "distinct_operators": 54,
+        "catalog_coverage_ratio": 0.6429,
+        "shannon_entropy_bits": 3.611,
+        "top_5_share": 0.729,
+        "top_operators": {
+          "group_neutralize": 900,
+          "rank": 720,
+          "ts_zscore": 503,
+          "ts_delta": 333,
+          "ts_decay_linear": 148
+        }
+      },
+      "field_representation": {
+        "distinct_fields": 246,
+        "catalog_coverage_ratio": 0.4162,
+        "datasets_represented": 33,
+        "top_datasets": {
+          "earnings4": 609,
+          "multifactor_return_pred": 168,
+          "model109": 124,
+          "ai_equity_alpha": 111,
+          "mmp_nlp_sentiment": 111
+        }
+      },
+      "type_errors_top": {
+        "ts_zscore requires scalar operands": 34,
+        "ts_delta requires scalar operands": 24,
+        "ts_std_dev requires scalar operands": 8,
+        "ts_decay_linear requires scalar operands": 7,
+        "ts_corr requires scalar operands": 6
+      },
+      "archive_matches": {
+        "matched_scored_count": 0,
+        "matched_pnl_count": 0,
+        "unmatched_count": 1000,
+        "unmatched_status": "pnl_unknown / unsimulated_offline"
+      }
+    }
+  ],
+  "measured_archive_cohort": {
+    "cohort_description": "Preserved PnL-covered candidates re-examined under verified evaluation context (USA, delay 1, TOP3000)",
+    "sample_size": 20,
+    "common_trading_days": 1236,
+    "sharpe": {
+      "mean": 1.507,
+      "median": 1.5,
+      "min": 1.29,
+      "max": 1.74
+    },
+    "turnover": {
+      "mean": 0.1037,
+      "median": 0.1048
+    },
+    "pairwise_abs_correlation": {
+      "mean": 0.689,
+      "max": 1.0,
+      "pairs_above_0_80": 63,
+      "total_pairs": 190
+    },
+    "context_label": "Consistent historical attribution; PnL observed under earlier qualification filter."
+  },
+  "recommendation": {
+    "title": "Type-Constrained AST Insertion in Genetic Operators",
+    "finding": "Across 3,000 generated expressions, syntactic validity is 100%, but type compliance is 91.5% (85/1000 invalid per run). The type failures are exclusively caused by legacy untyped insertion in _mutate_wrap_ts and _mutate_spread, which graft time-series operators (ts_zscore, ts_delta, ts_decay_linear) directly around VECTOR or GROUP nodes without checking operand type.",
+    "remedy": "Equip GeneticEngine._mutate_wrap_ts and _mutate_spread with AST node-type pre-checking via forge2_expression.type_errors / infer(), restricting time-series wrapping to verified MATRIX/scalar nodes. This will lift type compliance from 91.5% to 100.0% without altering qualification gates or platform semantics.",
+    "expected_impact": "Zero wasted candidate generations; 100% type-safe offline candidate pool."
+  }
+}

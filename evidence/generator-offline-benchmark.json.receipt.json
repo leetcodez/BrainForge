@@ -1,0 +1,14 @@
+{
+  "benchmark_id": "offline_gen_bench_1791290541",
+  "timestamp_utc": "2026-10-06T12:42:24Z",
+  "benchmark_file": "evidence/generator-offline-benchmark.json",
+  "file_sha256": "7bf1e0d7c041204be636095c2e960c82e0c3e85db7b1f1ef0f7585a8ce2d88df",
+  "seeds_evaluated": [
+    42,
+    101,
+    2026
+  ],
+  "total_evaluations": 3000,
+  "network_calls": 0,
+  "offline_verified": true
+}
