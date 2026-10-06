@@ -491,3 +491,268 @@ def test_isolated_restore_and_save_preserves_warmstart_manifest(tmp_path):
     tamper_engine = AlphaFactory.__new__(AlphaFactory)
     with pytest.raises(ValueError, match="does not match manifest member"):
         tamper_engine._restore_checkpoint()
+
+
+# ---------------------------------------------------------------------------
+# Test 10: Lifecycle acceptance - evolved population restore & immutable origin hash
+# ---------------------------------------------------------------------------
+def test_runtime_checkpoint_evolved_population_lifecycle(tmp_path):
+    """Assert import -> evolve -> save -> restart correctly recovers evolved population,
+    generation, and decision state while preserving the immutable original warmstart artifact hash.
+    """
+    v3_path = Path("evidence/evidence_aware_warmstart_v3.json")
+    receipt_src = Path("evidence/evidence_aware_warmstart_v3.json.receipt.json")
+    initial_warmstart = tmp_path / "warmstart_v3_copy.json"
+    import shutil
+    shutil.copyfile(v3_path, initial_warmstart)
+    if receipt_src.is_file():
+        shutil.copyfile(receipt_src, tmp_path / "warmstart_v3_copy.json.receipt.json")
+
+    original_artifact_hash = hashlib.sha256(initial_warmstart.read_bytes()).hexdigest()
+
+    # Step 1: Import initial warmstart artifact
+    config.CHECKPOINT_PATH = str(initial_warmstart)
+    engine_initial = AlphaFactory.__new__(AlphaFactory)
+    import types
+    engine_initial.genetic = types.SimpleNamespace(avoid_motifs=set())
+    engine_initial._restore_checkpoint()
+
+    assert engine_initial.warmstart_file_hash == original_artifact_hash
+    assert engine_initial.checkpoint_file_hash == original_artifact_hash
+    assert hasattr(engine_initial, "warmstart_manifest")
+    initial_manifest = engine_initial.warmstart_manifest
+
+    # Step 2: Simulate evolution - change decay, mutate expression, update decision & generation state
+    evolved_population = [{"expression": expr, "universe": uni, "decay": dec}
+                          for expr, uni, dec in engine_initial._resume_population_keys]
+    # Evolve candidate 0: change decay from 0 to 5
+    evolved_population[0]["decay"] = 5 if evolved_population[0]["decay"] != 5 else 10
+    # Evolve candidate 1: replace expression with evolved variant
+    evolved_population[1]["expression"] = "rank(ts_decay_linear(sales, 10))"
+
+    engine_initial.population = evolved_population
+    engine_initial.generation = 4
+    engine_initial.submission_count = 15
+    engine_initial.history_scores = [["expr_a", 1.8], ["expr_b", 2.4]]
+    engine_initial.winner_exprs = ["expr_b"]
+    engine_initial.loser_exprs = ["expr_a"]
+    engine_initial._avoid_motifs = {"bad_motif_1"}
+    engine_initial.experience = [{"key": "val"}]
+
+    # Step 3: Save mutable runtime checkpoint
+    runtime_checkpoint_path = tmp_path / "evolved_runtime_checkpoint.json"
+    config.CHECKPOINT_PATH = str(runtime_checkpoint_path)
+    engine_initial._save_checkpoint()
+
+    runtime_cp_hash = hashlib.sha256(runtime_checkpoint_path.read_bytes()).hexdigest()
+    assert runtime_cp_hash != original_artifact_hash
+
+    # Step 4: Restart new engine from evolved runtime checkpoint
+    engine_resumed = AlphaFactory.__new__(AlphaFactory)
+    engine_resumed.genetic = types.SimpleNamespace(avoid_motifs=set())
+    engine_resumed._restore_checkpoint()
+
+    # Assert evolved population restored exactly without membership mismatch error
+    assert engine_resumed._resume_population_keys[0][2] == evolved_population[0]["decay"]
+    assert engine_resumed._resume_population_keys[1][0] == "rank(ts_decay_linear(sales, 10))"
+    assert len(engine_resumed._resume_population_keys) == len(evolved_population)
+
+    # Assert generation and execution state recovered
+    assert engine_resumed.generation == 5  # Saved as self.generation + 1
+    assert engine_resumed.submission_count == 15
+    assert engine_resumed.history_scores == [["expr_a", 1.8], ["expr_b", 2.4]]
+    assert engine_resumed.winner_exprs == ["expr_b"]
+    assert engine_resumed.loser_exprs == ["expr_a"]
+    assert engine_resumed._avoid_motifs == {"bad_motif_1"}
+    assert engine_resumed.experience == [{"key": "val"}]
+
+    # Assert provenance: immutable origin hash preserved, checkpoint digest recorded separately
+    assert engine_resumed.warmstart_file_hash == original_artifact_hash
+    assert engine_resumed.checkpoint_file_hash == runtime_cp_hash
+    assert engine_resumed.warmstart_file_hash != engine_resumed.checkpoint_file_hash
+    assert engine_resumed.warmstart_manifest == initial_manifest
+
+
+# ---------------------------------------------------------------------------
+# Test 11: Repeated unchanged-population restarts preserve immutable origin hash
+# ---------------------------------------------------------------------------
+def test_runtime_checkpoint_repeated_unchanged_population_restarts(tmp_path):
+    """Assert repeated cycles of save -> restore -> save -> restore with unchanged population
+    keep the original warmstart artifact hash stable without drifting to checkpoint hash.
+    """
+    v3_path = Path("evidence/evidence_aware_warmstart_v3.json")
+    receipt_src = Path("evidence/evidence_aware_warmstart_v3.json.receipt.json")
+    initial_warmstart = tmp_path / "warmstart_v3_restarts.json"
+    import shutil
+    shutil.copyfile(v3_path, initial_warmstart)
+    if receipt_src.is_file():
+        shutil.copyfile(receipt_src, tmp_path / "warmstart_v3_restarts.json.receipt.json")
+
+    original_artifact_hash = hashlib.sha256(initial_warmstart.read_bytes()).hexdigest()
+
+    # Cycle 0: Import original warmstart
+    config.CHECKPOINT_PATH = str(initial_warmstart)
+    e0 = AlphaFactory.__new__(AlphaFactory)
+    import types
+    e0.genetic = types.SimpleNamespace(avoid_motifs=set())
+    e0._restore_checkpoint()
+    e0.population = [{"expression": expr, "universe": uni, "decay": dec}
+                     for expr, uni, dec in e0._resume_population_keys]
+
+    assert e0.warmstart_file_hash == original_artifact_hash
+
+    # Cycle 1: Save runtime checkpoint 1 and restore
+    cp1_path = tmp_path / "runtime_cycle_1.json"
+    config.CHECKPOINT_PATH = str(cp1_path)
+    e0._save_checkpoint()
+    cp1_hash = hashlib.sha256(cp1_path.read_bytes()).hexdigest()
+
+    e1 = AlphaFactory.__new__(AlphaFactory)
+    e1.genetic = types.SimpleNamespace(avoid_motifs=set())
+    e1._restore_checkpoint()
+    assert e1.warmstart_file_hash == original_artifact_hash
+    assert e1.checkpoint_file_hash == cp1_hash
+    assert e1.warmstart_file_hash != e1.checkpoint_file_hash
+
+    # Cycle 2: Save runtime checkpoint 2 from e1 and restore
+    cp2_path = tmp_path / "runtime_cycle_2.json"
+    config.CHECKPOINT_PATH = str(cp2_path)
+    e1.population = [{"expression": expr, "universe": uni, "decay": dec}
+                     for expr, uni, dec in e1._resume_population_keys]
+    e1._save_checkpoint()
+    cp2_hash = hashlib.sha256(cp2_path.read_bytes()).hexdigest()
+
+    e2 = AlphaFactory.__new__(AlphaFactory)
+    e2.genetic = types.SimpleNamespace(avoid_motifs=set())
+    e2._restore_checkpoint()
+    assert e2.warmstart_file_hash == original_artifact_hash
+    assert e2.checkpoint_file_hash == cp2_hash
+    assert e2.warmstart_file_hash != e2.checkpoint_file_hash
+    assert e2.warmstart_manifest == e0.warmstart_manifest
+
+
+# ---------------------------------------------------------------------------
+# Test 12: Mid-generation checkpoint with pending offspring recovery
+# ---------------------------------------------------------------------------
+def test_runtime_checkpoint_pending_offspring_recovery(tmp_path, monkeypatch):
+    """Assert mid-generation checkpoint with pending offspring recovers via runtime route,
+    and incompatible epoch fails closed.
+    """
+    monkeypatch.setenv("FORGE2_EPOCH_ID", "test_epoch_compat")
+    cp_path = tmp_path / "pending_mid_gen_checkpoint.json"
+    config.CHECKPOINT_PATH = str(cp_path)
+
+    e = AlphaFactory.__new__(AlphaFactory)
+    import types
+    e.genetic = types.SimpleNamespace(avoid_motifs=set())
+    e.generation = 2
+    e.submission_count = 8
+    e.population = [{"expression": "rank(f)", "universe": "TOP3000", "decay": 0}]
+    e.warmstart_file_hash = "mock_origin_hash_abc"
+    e.warmstart_manifest = {"target_size": 1}
+
+    pending = [
+        {"expression": "rank(pending_alpha_1)", "universe": "TOP3000", "decay": 0,
+         "parent_id": "p_0", "mutation_type": "mutate_leaf", "origin": "evolution"},
+        {"expression": "rank(pending_alpha_2)", "universe": "TOP3000", "decay": 5,
+         "parent_id": "p_1", "mutation_type": "crossover", "origin": "evolution"},
+    ]
+    e._save_checkpoint(pending_offspring=pending)
+
+    saved_data = json.loads(cp_path.read_text(encoding="utf-8"))
+    assert saved_data["checkpoint_type"] == "runtime_checkpoint"
+    assert saved_data["pending_generation"] == 2
+    assert len(saved_data["pending_offspring"]) == 2
+
+    # Restore in new engine with matching epoch
+    resumed = AlphaFactory.__new__(AlphaFactory)
+    resumed.genetic = types.SimpleNamespace(avoid_motifs=set())
+    resumed._restore_checkpoint()
+
+    assert resumed._resume_generation == 2
+    assert len(resumed._resume_offspring) == 2
+    assert resumed._resume_offspring[0]["expression"] == "rank(pending_alpha_1)"
+    assert resumed._resume_offspring[1]["expression"] == "rank(pending_alpha_2)"
+    assert resumed.warmstart_file_hash == "mock_origin_hash_abc"
+
+    # Mismatched epoch must fail closed
+    monkeypatch.setenv("FORGE2_EPOCH_ID", "different_epoch_id")
+    resumed_mismatch = AlphaFactory.__new__(AlphaFactory)
+    resumed_mismatch.genetic = types.SimpleNamespace(avoid_motifs=set())
+    with pytest.raises(ValueError, match="different vocabulary epoch"):
+        resumed_mismatch._restore_checkpoint()
+
+
+# ---------------------------------------------------------------------------
+# Test 13: Altered original artifact tamper rejection before state mutation
+# ---------------------------------------------------------------------------
+def test_original_artifact_tamper_rejection_intact(tmp_path):
+    """Assert altered original warmstart artifact raises ValueError before engine state mutation."""
+    v3_path = Path("evidence/evidence_aware_warmstart_v3.json")
+    v3_data = json.loads(v3_path.read_text(encoding="utf-8"))
+
+    # Case 1: Altered member decay in original artifact
+    tampered_decay_data = copy.deepcopy(v3_data)
+    tampered_decay_data["population"][0][2] = 99
+    tampered_decay_path = tmp_path / "tampered_decay_art.json"
+    tampered_decay_path.write_text(json.dumps(tampered_decay_data), encoding="utf-8")
+
+    config.CHECKPOINT_PATH = str(tampered_decay_path)
+    engine_decay = AlphaFactory.__new__(AlphaFactory)
+    import types
+    engine_decay.genetic = types.SimpleNamespace(avoid_motifs=set())
+    with pytest.raises(ValueError, match="does not match manifest member"):
+        engine_decay._restore_checkpoint()
+    # Confirm engine state was NOT mutated
+    assert not hasattr(engine_decay, "_resume_population_keys")
+    assert not hasattr(engine_decay, "warmstart_manifest")
+
+    # Case 2: Altered manifest body (digest mismatch)
+    tampered_manifest_data = copy.deepcopy(v3_data)
+    tampered_manifest_data["warmstart_manifest"]["target_size"] = 999
+    tampered_manifest_path = tmp_path / "tampered_manifest_art.json"
+    tampered_manifest_path.write_text(json.dumps(tampered_manifest_data), encoding="utf-8")
+
+    config.CHECKPOINT_PATH = str(tampered_manifest_path)
+    engine_manifest = AlphaFactory.__new__(AlphaFactory)
+    engine_manifest.genetic = types.SimpleNamespace(avoid_motifs=set())
+    with pytest.raises(ValueError, match="manifest digest mismatch"):
+        engine_manifest._restore_checkpoint()
+    assert not hasattr(engine_manifest, "_resume_population_keys")
+
+
+# ---------------------------------------------------------------------------
+# Test 14: Conflicting or invalid checkpoint markers fail closed
+# ---------------------------------------------------------------------------
+def test_invalid_and_conflicting_checkpoint_markers_fail_closed(tmp_path):
+    """Assert invalid JSON, malformed populations, and conflicting markers fail closed."""
+    # Case 1: Corrupt JSON
+    corrupt_path = tmp_path / "corrupt.json"
+    corrupt_path.write_text("{invalid json", encoding="utf-8")
+    config.CHECKPOINT_PATH = str(corrupt_path)
+    e1 = AlphaFactory.__new__(AlphaFactory)
+    with pytest.raises(ValueError, match="Checkpoint is corrupt"):
+        e1._restore_checkpoint()
+
+    # Case 2: Conflicting schema markers
+    conflicting_path = tmp_path / "conflicting.json"
+    conflicting_path.write_text(json.dumps({
+        "schema_version": "forge2-warmstart-v1",
+        "checkpoint_type": "runtime_checkpoint",
+        "population": [["rank(f)", "TOP3000", 0]],
+    }), encoding="utf-8")
+    config.CHECKPOINT_PATH = str(conflicting_path)
+    e2 = AlphaFactory.__new__(AlphaFactory)
+    with pytest.raises(ValueError, match="conflicting warmstart artifact schema and runtime checkpoint"):
+        e2._restore_checkpoint()
+
+    # Case 3: Malformed population structure in runtime checkpoint
+    bad_pop_path = tmp_path / "bad_pop.json"
+    bad_pop_path.write_text(json.dumps({
+        "checkpoint_type": "runtime_checkpoint",
+        "population": [["rank(f)", "TOP3000"]],  # Len 2 instead of 3
+    }), encoding="utf-8")
+    config.CHECKPOINT_PATH = str(bad_pop_path)
+    e3 = AlphaFactory.__new__(AlphaFactory)
+    with pytest.raises(ValueError, match="Invalid checkpoint population"):
+        e3._restore_checkpoint()

@@ -924,6 +924,7 @@ class AlphaFactory:
         pending block, which clears it once the generation completes."""
         try:
             data = {
+                "checkpoint_type": "runtime_checkpoint",
                 "generation": self.generation + 1,
                 "submission_count": self.submission_count,
                 "timestamp": time.time(),
@@ -966,18 +967,29 @@ class AlphaFactory:
             data = json.loads(path.read_text(encoding="utf-8"))
         except Exception as exc:
             raise ValueError("Checkpoint is corrupt; restore it rather than silently restarting") from exc
-        expected_epoch=os.getenv("FORGE2_EPOCH_ID")
+        if not isinstance(data, dict):
+            raise ValueError("Invalid checkpoint data: expected JSON object")
+
+        if data.get("schema_version") == "forge2-warmstart-v1" and data.get("checkpoint_type") == "runtime_checkpoint":
+            raise ValueError("Invalid checkpoint: conflicting warmstart artifact schema and runtime checkpoint markers")
+
+        expected_epoch = os.getenv("FORGE2_EPOCH_ID")
         if data.get("pending_offspring") and data.get("epoch_id") and expected_epoch != data["epoch_id"]:
             raise ValueError("Pending checkpoint belongs to a different vocabulary epoch")
-        decision=data.get("decision_state")
-        if decision:
-            for name in ("history_scores","loser_exprs","winner_exprs","experience"):
-                setattr(self,name,decision[name])
-            self.refined=set(decision["refined"])
-            self._avoid_motifs=set(decision["avoid_motifs"])
-            self.genetic.avoid_motifs=self._avoid_motifs.copy()
-        self.basket_report=data.get("basket_report",{"reason":"legacy_checkpoint"})
-        if "warmstart_manifest" in data or data.get("schema_version") == "forge2-warmstart-v1":
+
+        is_runtime_checkpoint = (
+            data.get("checkpoint_type") == "runtime_checkpoint"
+            or "population_snapshot" in data
+            or "decision_state" in data
+            or "pending_offspring" in data
+            or (int(data.get("generation", 0)) > 0 and data.get("schema_version") != "forge2-warmstart-v1")
+        )
+        is_warmstart_artifact = (
+            not is_runtime_checkpoint
+            and ("warmstart_manifest" in data or data.get("schema_version") == "forge2-warmstart-v1")
+        )
+
+        if is_warmstart_artifact:
             from forge2_warmstart import validate_warmstart_import
             receipt_path = path.with_name(f"{path.name}.receipt.json")
             receipt_data = None
@@ -995,17 +1007,39 @@ class AlphaFactory:
             self.warmstart_manifest = validation["manifest"]
             self.warmstart_file_hash = validation["file_hash"]
             self.warmstart_provenance = validation["provenance"]
-        self._resume_population_snapshot=data.get("population_snapshot")
+            self.checkpoint_file_hash = hashlib.sha256(path.read_bytes()).hexdigest()
+        elif is_runtime_checkpoint:
+            self.checkpoint_file_hash = hashlib.sha256(path.read_bytes()).hexdigest()
+            if "warmstart_manifest" in data:
+                self.warmstart_manifest = data["warmstart_manifest"]
+            if "warmstart_file_hash" in data:
+                self.warmstart_file_hash = data["warmstart_file_hash"]
+            if "warmstart_provenance" in data:
+                self.warmstart_provenance = data["warmstart_provenance"]
+        else:
+            self.checkpoint_file_hash = hashlib.sha256(path.read_bytes()).hexdigest()
+
+        decision = data.get("decision_state")
+        if decision:
+            for name in ("history_scores", "loser_exprs", "winner_exprs", "experience"):
+                setattr(self, name, decision[name])
+            self.refined = set(decision["refined"])
+            self._avoid_motifs = set(decision["avoid_motifs"])
+            if hasattr(self, "genetic") and self.genetic is not None:
+                self.genetic.avoid_motifs = self._avoid_motifs.copy()
+        self.basket_report = data.get("basket_report", {"reason": "legacy_checkpoint"})
+        self._resume_population_snapshot = data.get("population_snapshot")
         if self._resume_population_snapshot is not None:
             for rec in self._resume_population_snapshot:
-                if rec.get("distance")=="infinity":rec["distance"]=float("inf")
+                if rec.get("distance") == "infinity":
+                    rec["distance"] = float("inf")
         self.generation = int(data.get("generation", 0))
         self.submission_count = int(data.get("submission_count", 0))
         if data.get("random_state"):
             random.setstate(as_tuples(data["random_state"]))
         population = data.get("population")
         if population is not None:
-            if not isinstance(population,list) or any(not isinstance(k,list) or len(k)!=3 for k in population):
+            if not isinstance(population, list) or any(not isinstance(k, list) or len(k) != 3 for k in population):
                 raise ValueError("Invalid checkpoint population")
             self._resume_population_keys = population
         # Mid-generation resume: if the interrupted run had already generated
