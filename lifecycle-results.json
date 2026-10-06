@@ -1,0 +1,14 @@
+{
+  "unchanged_population_restart": {
+    "restored": true,
+    "original_artifact_hash": "18ca966831a49aae0d79646e03c2944fc2e45f379a6f6a74d041a7505ff11786",
+    "retained_warmstart_hash_after_restart": "204ff80b9f5c5daa34fa8272f65cfa76e29a76ab36b8d8b8f46374053f3c5587",
+    "immutable_artifact_reference_changed": true
+  },
+  "evolved_population_restart": {
+    "restored": false,
+    "error": "Warmstart population at index 0 does not match manifest member: [group_neutralize(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), INDUSTRY), TOP3000, 5] vs member 0m8RdJbv [group_neutralize(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), INDUSTRY), TOP3000, 0]"
+  },
+  "network_calls": 0,
+  "scope": "Actual supplied warmstart artifact copied to temporary fixtures; only published source used; no source or real campaign state modifications"
+}

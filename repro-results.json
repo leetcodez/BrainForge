@@ -1,0 +1,38 @@
+{
+  "network_calls": 0,
+  "fixture_findings": [
+    {
+      "finding": "Malformed checks promoted to CHECKS_VERIFIED",
+      "observed": "CHECKS_VERIFIED"
+    },
+    {
+      "finding": "Whitespace duplicate retained, distinct decay dropped",
+      "output_members": 2,
+      "unique_evaluation_identities": 1,
+      "retained_decays": [
+        0,
+        0
+      ]
+    },
+    {
+      "finding": "No-evidence fallback exceeds one-seat exploration reserve",
+      "selected": 2,
+      "declared_reserve": 1,
+      "reason": "insufficient_common_evidence; base ranking retained, diversity unverified"
+    },
+    {
+      "finding": "Output may replace the read-only source database",
+      "source_is_json_after_call": true
+    },
+    {
+      "finding": "Actual default checkpoint filename is not guarded",
+      "target": ".wq_checkpoint.json",
+      "existing_marker_lost": true
+    },
+    {
+      "finding": "Restore accepts keys but next checkpoint discards provenance",
+      "population_keys_restored": true,
+      "manifest_after_save": false
+    }
+  ]
+}

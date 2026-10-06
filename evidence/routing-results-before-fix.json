@@ -1,0 +1,26 @@
+{
+  "network_calls": 0,
+  "scope": "Three presence-only legacy markers added separately to temporary copies of explicit warmstart artifact; original manifest and original receipt preserved; source files untouched",
+  "cases": [
+    {
+      "marker": null,
+      "accepted": false,
+      "error": "Warmstart population at index 0 does not match manifest member: [group_neutralize(trade_when(ts_zscore(fivehundred_day_close_to_close_vol, 120) > zscore(zscore(group_neutralize(rank(ts_rank(add(add(eleventh_event_option_effect_2, ninety_day_interpolated_implied_volatility), vec_avg(ern4_impliedee)), 60)), MARKET))), ts_zscore(winsorize(ts_rank(subtract(ninety_day_interpolated_implied_volatility, vec_avg(ern4_m1fcaststrapx)), 60)), 180), -5), INDUSTRY), TOP3000, 5]"
+    },
+    {
+      "marker": "population_snapshot",
+      "accepted": true,
+      "restored_decay": 5
+    },
+    {
+      "marker": "decision_state",
+      "accepted": true,
+      "restored_decay": 5
+    },
+    {
+      "marker": "pending_offspring",
+      "accepted": true,
+      "restored_decay": 5
+    }
+  ]
+}

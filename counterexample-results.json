@@ -1,0 +1,36 @@
+{
+  "network_calls": 0,
+  "scope": "temporary fixture state, uploaded warmstart module and isolated released dependencies with user-pasted orchestrator diff",
+  "findings": [
+    {
+      "finding": "Known correlation clone rejected from core is re-admitted as exploration",
+      "core": [
+        "a",
+        "c"
+      ],
+      "exploration": [
+        "b"
+      ],
+      "observed_abs_correlation": 1.0
+    },
+    {
+      "finding": "Modified population is accepted despite unchanged manifest identity and original receipt",
+      "tampered_decay_restored": 5
+    },
+    {
+      "finding": "Same-process concurrent publishers share a temporary filename; successful publisher A publishes B payload",
+      "outcomes": {
+        "A": {
+          "result": "success",
+          "hash": "16814286e947963760cdeb54f3e2047f965ae458ffa1d1d57e4c913a681c2323"
+        },
+        "B": {
+          "result": "FileExistsError"
+        }
+      },
+      "published_payload": {
+        "publisher": "B"
+      }
+    }
+  ]
+}

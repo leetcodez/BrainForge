@@ -1,0 +1,17 @@
+{
+  "package_name": "BrainForge-type-safety-inputs.zip",
+  "timestamp_utc": "2026-10-06T14:45:25Z",
+  "git_commit": "3978dc5fe24e18cc074c27097b6209c99e3b25d7",
+  "total_files_packaged": 79,
+  "zip_sha256": "d694e11c52bee1d8dd0442010d7605c830ccf06b19855caa7cee09a6bf4500f6",
+  "zip_size_bytes": 5022024,
+  "context_file_sha256": "2120518ec1519025fca0c04d92c29ec6fc254ff8d22aa74d02cfe2555463b7e5",
+  "security_compliance": {
+    "secrets_exported": false,
+    "live_databases_exported": false,
+    "checkpoints_exported": false,
+    "pycache_exported": false,
+    "venv_exported": false,
+    "offline_verified": true
+  }
+}

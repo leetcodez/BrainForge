@@ -44,3 +44,4 @@ evidence/*.tar.gz
 evidence/*.tgz
 evidence/replay-smoke/
 
+migrated_runs/
