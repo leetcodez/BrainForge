@@ -977,11 +977,24 @@ class AlphaFactory:
             self._avoid_motifs=set(decision["avoid_motifs"])
             self.genetic.avoid_motifs=self._avoid_motifs.copy()
         self.basket_report=data.get("basket_report",{"reason":"legacy_checkpoint"})
-        if "warmstart_manifest" in data:
-            self.warmstart_manifest = data["warmstart_manifest"]
-            self.warmstart_file_hash = data.get("warmstart_file_hash") or hashlib.sha256(path.read_bytes()).hexdigest()
-        if "warmstart_provenance" in data:
-            self.warmstart_provenance = data["warmstart_provenance"]
+        if "warmstart_manifest" in data or data.get("schema_version") == "forge2-warmstart-v1":
+            from forge2_warmstart import validate_warmstart_import
+            receipt_path = path.with_name(f"{path.name}.receipt.json")
+            receipt_data = None
+            if receipt_path.is_file():
+                try:
+                    receipt_data = json.loads(receipt_path.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+            validation = validate_warmstart_import(
+                data,
+                checkpoint_path=path,
+                expected_receipt=receipt_data,
+                expected_epoch_id=expected_epoch,
+            )
+            self.warmstart_manifest = validation["manifest"]
+            self.warmstart_file_hash = validation["file_hash"]
+            self.warmstart_provenance = validation["provenance"]
         self._resume_population_snapshot=data.get("population_snapshot")
         if self._resume_population_snapshot is not None:
             for rec in self._resume_population_snapshot:
