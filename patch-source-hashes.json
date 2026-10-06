@@ -1,0 +1,5 @@
+{
+  "original_orchestrator_sha256": "b7dc09ad2ace210d6812760d59f26c5fed4218c7b9d568fd5d8121dc9d11e5a7",
+  "patched_orchestrator_sha256": "3168dbf36d450c44eac0185723691f3cc564a8278928c5ef5e669ea9df768acb",
+  "scope": "Only explicit warmstart schema precedence; user artifact and uploaded source unchanged"
+}

@@ -1,0 +1,15 @@
+{
+  "uploaded_suite": "151 passed",
+  "patched_suite": "154 passed",
+  "additional_regressions": 3,
+  "patch_apply_check": "passed",
+  "patch_applied_source_byte_match": true,
+  "network_calls": 0,
+  "live_state_modified": false,
+  "artifact_sha256": "18ca966831a49aae0d79646e03c2944fc2e45f379a6f6a74d041a7505ff11786",
+  "source_hashes": {
+    "original_orchestrator_sha256": "b7dc09ad2ace210d6812760d59f26c5fed4218c7b9d568fd5d8121dc9d11e5a7",
+    "patched_orchestrator_sha256": "3168dbf36d450c44eac0185723691f3cc564a8278928c5ef5e669ea9df768acb",
+    "scope": "Only explicit warmstart schema precedence; user artifact and uploaded source unchanged"
+  }
+}

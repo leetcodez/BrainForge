@@ -984,6 +984,10 @@ class AlphaFactory:
             or "pending_offspring" in data
             or (int(data.get("generation", 0)) > 0 and data.get("schema_version") != "forge2-warmstart-v1")
         )
+        # Explicit artifact schemas outrank presence-only legacy heuristics.
+        if data.get("schema_version") == "forge2-warmstart-v1":
+            is_runtime_checkpoint = False
+
         is_warmstart_artifact = (
             not is_runtime_checkpoint
             and ("warmstart_manifest" in data or data.get("schema_version") == "forge2-warmstart-v1")

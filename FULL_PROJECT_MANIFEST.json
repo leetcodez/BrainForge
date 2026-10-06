@@ -1,9 +1,9 @@
 {
   "project": "BrainForge",
   "bundle": "Full available project reconstruction with v2 overlay",
-  "date": "2026-10-03",
+  "date": "2026-10-06",
   "scope": {
-    "v2_python_modules": 36,
+    "v2_python_modules": 37,
     "historical_utility_modules": 10,
     "project_row_exports": 52,
     "normalized_catalog_included": true,
@@ -17,7 +17,7 @@
     "Current local checkout/GitHub branch and live state were not supplied."
   ],
   "validation": {
-    "offline_tests_passed": 136,
+    "offline_tests_passed": 154,
     "genetic_outputs_checked": 10000,
     "catalog_smoke_checks_passed": 54,
     "v2_source_byte_identical": true,
@@ -553,6 +553,10 @@
       "sha256": "5ef7444ed58066c7ae85f1c4448190588402fe752f456b18265fb3cb6d1d9ea0",
       "bytes": 22144
     },
+    "src/forge2_warmstart.py": {
+      "sha256": "2afe01f4c4fe791b0cac8c244da18377340a69d766999408b0f47ac51aea2b8a",
+      "bytes": 30422
+    },
     "src/llm_seed_generator.py": {
       "sha256": "12491f6c89fddda96226a16829fa00ae78bff4ea6cfde6290093a90520f93391",
       "bytes": 29913
@@ -570,8 +574,8 @@
       "bytes": 29833
     },
     "src/orchestrator.py": {
-      "sha256": "afa6a8621bac5c0ed8335099753bd40bf676949eb08042bbd7af55fe5cf74f84",
-      "bytes": 130306
+      "sha256": "3168dbf36d450c44eac0185723691f3cc564a8278928c5ef5e669ea9df768acb",
+      "bytes": 133485
     },
     "src/run_diagnostics.py": {
       "sha256": "b1ce3d3b27fb3252a696854b6b83f88f259753ed6b7a8eab194319602bb0c56e",
@@ -660,6 +664,14 @@
     "tests/test_safe_network_writes.py": {
       "sha256": "75ceaaaf76143d8feb69b5b10075d2db2b513a05d5f91e5ff85fb478458c273b",
       "bytes": 1834
+    },
+    "tests/test_warmstart.py": {
+      "sha256": "6e6a31713e6656a62eac4cb638ed2e1577948ec2e1b6738e60b285d6b8b4eb1d",
+      "bytes": 36278
+    },
+    "tests/test_warmstart_schema_precedence.py": {
+      "sha256": "4fc41b68c773220ce9d1305beea3ff4a49ab6ccb09812711d3aaf8ef18f2eec7",
+      "bytes": 1227
     },
     "tools/legacy/analyze_run.py": {
       "sha256": "c948dcbd5117b5db7108871736db8892dc73ddde7c0d9e4a93c04c177bd345f7",
